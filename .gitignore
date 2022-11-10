@@ -73,3 +73,9 @@ Blink/Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
 Blink/DerivedDataCache/*
+
+# Rider Link Plugin
+Blink/Plugins/Developer/RiderLink
+
+# Rider IDE Crap
+Blink/.idea
