@@ -2,6 +2,7 @@
 
 #include "BlinkGameMode.h"
 #include "BlinkCharacter.h"
+#include "BlinkPlayerController.h"
 #include "UObject/ConstructorHelpers.h"
 
 ABlinkGameMode::ABlinkGameMode()
@@ -11,4 +12,5 @@ ABlinkGameMode::ABlinkGameMode()
 	static ConstructorHelpers::FClassFinder<APawn> PlayerPawnClassFinder(TEXT("/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter"));
 	DefaultPawnClass = PlayerPawnClassFinder.Class;
 
+	PlayerControllerClass = ABlinkPlayerController::StaticClass();
 }

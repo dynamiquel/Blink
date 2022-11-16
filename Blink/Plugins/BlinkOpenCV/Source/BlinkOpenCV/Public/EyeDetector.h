@@ -1,10 +1,10 @@
 ﻿#pragma once
 #include "FeatureDetector.h"
 
-class FEyeDetector : public FFeatureDetector
+class BLINKOPENCV_API FEyeDetector : public FFeatureDetector
 {
 public:
-	FEyeDetector();
+	FEyeDetector(UCameraReader* InCameraReader);
 	
 protected:
 	virtual uint32 ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime) override;

@@ -1,25 +1,30 @@
 ﻿#include "FeatureDetector.h"
 
 #include "BlinkOpenCV.h"
+#include "CameraReader.h"
 
-FFeatureDetector::FFeatureDetector()
+FFeatureDetector::FFeatureDetector(UCameraReader* InCameraReader)
 {
 	// Executed on game thread.
+
+	checkf(InCameraReader, TEXT("FeatureDetector is missing a valid CameraReader"));
+	CameraReader = InCameraReader;
+	CurrentFrame = MakeShared<cv::Mat>();
 	
 	Thread = FRunnableThread::Create(this, ThreadName, 0, TPri_AboveNormal);
-	checkf(Thread && FPlatformProcess::SupportsMultithreading(), TEXT("Could not create Thread '%s'."), ThreadName);
+	checkf(Thread && FPlatformProcess::SupportsMultithreading(), TEXT("Could not create Thread '%s'"), ThreadName);
 	if (!Thread)
 	{
 		UE_LOG(LogBlinkOpenCV, Warning,
-			TEXT("Could not create Thread '%s' due to no multi-threading support. Will run on game thread!"), ThreadName);
+			TEXT("Could not create Thread '%s' due to no multi-threading support. Will run on game thread instead!"),
+			ThreadName);
 	}
 }
 
 bool FFeatureDetector::Init()
 {
 	// Executed on game thread.
-	
-	UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' has been initialised."), ThreadName);
+	UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' has been initialised"), ThreadName);
 	return true;
 }
 
@@ -27,34 +32,37 @@ uint32 FFeatureDetector::Run()
 {
 	// Executed on worker thread.
 	
-	UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is running."), ThreadName);
+	UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is running"), ThreadName);
 	
 	bActive = true;
 	
 	while (IsActive())
 	{
 		const double DeltaTime = UpdateAndGetDeltaTime();
-		#if UE_BUILD_DEBUG
+		#if UE_BUILD_DEBUG || UE_EDITOR
 		UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is ticking."), ThreadName);
 		#endif
 
-		if (cv::Mat NextFrame = GetNextFrame(); !NextFrame.empty())
+		if (auto NextFrame = GetNextFrame(); !NextFrame.empty())
 		{
-			#if UE_BUILD_DEBUG
+			#if UE_BUILD_DEBUG || UE_EDITOR
 			const double CurrentTime = FPlatformTime::Seconds();
 			UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is processing a frame."), ThreadName);
 			#endif
 			
 			ProcessNextFrame(NextFrame, DeltaTime);
 
-			#if UE_BUILD_DEBUG
+			#if UE_BUILD_DEBUG || UE_EDITOR
 			const double SecondsTook = FPlatformTime::Seconds() - CurrentTime;
-			UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' processed a frame (%fms)."), ThreadName, SecondsTook * 1000.f);
+			UE_LOG(LogBlinkOpenCV, Display,
+				TEXT("Thread '%s' processed a frame (%fms)."), ThreadName, SecondsTook * 1000.f);
 			#endif
+
+			NextFrame.copyTo(*CurrentFrame);
 		}
 
 		// Sleep until next refresh. Ensure minimum sleep time so it doesn't waste the OS resources.
-		const float SleepTime = FMath::Max(.01f, (1.f / RefreshRate) - DeltaTime);
+		const float SleepTime = FMath::Max(.01f, RefreshRate - (FPlatformTime::Seconds() - PreviousTime));
 		// Not sure which one I'm supposed to use.
 		//const float SleepTime = FMath::Max(.01f, (1.f / RefreshRate) - GWorld->RealTimeSeconds - PreviousTime);
 		FPlatformProcess::Sleep(SleepTime);
@@ -89,6 +97,8 @@ FFeatureDetector::~FFeatureDetector()
 		Thread->Kill();
 		delete Thread;
 	}
+
+	CurrentFrame.Reset();
 }
 
 void FFeatureDetector::Tick()
@@ -99,41 +109,35 @@ void FFeatureDetector::Tick()
 	const double DeltaTime = UpdateAndGetDeltaTime();
 	if ((ST_TimeUntilRefresh -= DeltaTime) <= 0)
 	{
-		#if UE_BUILD_DEBUG
+		#if UE_BUILD_DEBUG || UE_EDITOR
 		UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is ticking."), ThreadName);
 		#endif
 		
-		if (cv::Mat NextFrame = GetNextFrame(); !NextFrame.empty())
+		if (auto NextFrame = GetNextFrame(); !NextFrame.empty())
 		{
-			#if UE_BUILD_DEBUG
+			#if UE_BUILD_DEBUG || UE_EDITOR
 			const double CurrentTime = FPlatformTime::Seconds();
 			UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is processing a frame."), ThreadName);
 			#endif
 			
 			ProcessNextFrame(NextFrame, DeltaTime);
 
-			#if UE_BUILD_DEBUG
+			#if UE_BUILD_DEBUG || UE_EDITOR
 			const double SecondsTook = FPlatformTime::Seconds() - CurrentTime;
 			UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' processed a frame (%fms)."), ThreadName, SecondsTook * 1000.f);
 			#endif
+
+			//*CurrentFrame = NextFrame;
 		}
 		
-		ST_TimeUntilRefresh = 1 / RefreshRate;
+		ST_TimeUntilRefresh = RefreshRate;
 	}
 }
 
-void FFeatureDetector::QueueNewFrame(const cv::Mat& Frame)
-{
-	// Executed on game thread.
-	QueuedFrames.Enqueue(Frame);
-}
-
-cv::Mat FFeatureDetector::GetNextFrame()
+cv::Mat FFeatureDetector::GetNextFrame() const
 {
 	// Executed on worker thread.
-	cv::Mat PossibleFrame;
-	QueuedFrames.Dequeue(OUT PossibleFrame);
-	return PossibleFrame;
+	return CameraReader->GetFrame();
 }
 
 uint32 FFeatureDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime)
@@ -141,7 +145,7 @@ uint32 FFeatureDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTim
 	// Executed on worker thread.
 
 	// Simulate heavy work.
-	FPlatformProcess::Sleep(0.2f);
+	FPlatformProcess::Sleep(0.1f);
 	return 0;
 }
 

@@ -14,7 +14,6 @@ public class Blink : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"InputCore",
-			"HeadMountedDisplay",
 			"BlinkOpenCV"
 		});
 	}
