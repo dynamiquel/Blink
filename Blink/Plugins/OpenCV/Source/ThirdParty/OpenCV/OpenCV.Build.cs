@@ -15,13 +15,6 @@ public class OpenCV : ModuleRules
 		
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			// Link CUDA.
-			string CudaPath = "D:/Program Files/CUDA/v11.8";
-			string CudaIncludePath = Path.Combine(CudaPath, "include");
-			string CudaLibPath = Path.Combine(CudaPath, "lib/x64");
-			PublicIncludePaths.Add(CudaIncludePath);
-			PublicAdditionalLibraries.Add(Path.Combine(CudaLibPath, "cudart_static.lib"));
-
 			PublicSystemIncludePaths.Add(IncPath);
 
 			string LibPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
@@ -35,17 +28,17 @@ public class OpenCV : ModuleRules
 
 			PublicDelayLoadDLLs.AddRange(new []
 			{
-				DLLName,
 				FFMPEGDDLName,
 				MSMFDDLName,
-				HashDDLName
+				HashDDLName,
+				DLLName,
 			});
 			
-			RuntimeDependencies.Add(Path.Combine(BinaryPath, DLLName));
 			RuntimeDependencies.Add(Path.Combine(BinaryPath, FFMPEGDDLName));
 			RuntimeDependencies.Add(Path.Combine(BinaryPath, MSMFDDLName));
 			RuntimeDependencies.Add(Path.Combine(BinaryPath, HashDDLName));
-			
+			RuntimeDependencies.Add(Path.Combine(BinaryPath, DLLName));
+
 			PublicDefinitions.AddRange(new []
 			{
 				"WITH_OPENCV=1",

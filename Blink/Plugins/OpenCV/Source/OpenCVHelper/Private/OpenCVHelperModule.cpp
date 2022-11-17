@@ -85,11 +85,8 @@ void FOpenCVHelperModule::StartupModule()
 
 #if defined(OPENCV_DLL_NAME)
 	const FString OpenCvBinPath = PluginDir / TEXT(PREPROCESSOR_TO_STRING(OPENCV_PLATFORM_PATH));
-	const FString DLLPath = OpenCvBinPath / TEXT(PREPROCESSOR_TO_STRING(OPENCV_DLL_NAME));
 
 	FPlatformProcess::PushDllDirectory(*OpenCvBinPath);	
-	
-	OpenCvDllHandle = FPlatformProcess::GetDllHandle(*DLLPath);
 
 #if defined(OPENCV_FFMPEG_DLL_NAME)
 	const FString FfmpegDLLPath = OpenCvBinPath / TEXT(PREPROCESSOR_TO_STRING(OPENCV_FFMPEG_DLL_NAME));
@@ -103,6 +100,10 @@ void FOpenCVHelperModule::StartupModule()
 	const FString HashDLLPath = OpenCvBinPath / TEXT(PREPROCESSOR_TO_STRING(OPENCV_HASH_DLL_NAME));
 	OpenCvHashDllHandle = FPlatformProcess::GetDllHandle(*HashDLLPath);
 #endif
+
+	const FString DLLPath = OpenCvBinPath / TEXT(PREPROCESSOR_TO_STRING(OPENCV_DLL_NAME));
+	OpenCvDllHandle = FPlatformProcess::GetDllHandle(*DLLPath);
+
 	
 	FPlatformProcess::PopDllDirectory(*OpenCvBinPath);
 	
