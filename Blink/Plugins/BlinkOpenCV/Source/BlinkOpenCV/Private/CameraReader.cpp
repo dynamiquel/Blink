@@ -13,7 +13,7 @@ UCameraReader::UCameraReader()
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickInterval = 1.f / 60.f;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
-	bUseCamera = true;
+	bUseCamera = false;
 	CameraIndex = 0;
 	VideoFileLocation = TEXT("C:/Users/Liamk/Downloads/destiny2.mp4");
 	bResize = true;
@@ -96,12 +96,12 @@ void UCameraReader::InitialiseVideoStream()
 	UE_LOG(LogBlinkOpenCV, Display, TEXT("CameraReader: Initialising VideoStream"));
 	
 	// Attempts to open the VideoStream with the desired video input device/file.
-	// CPU decodes better than GPU for FFMPEG.
-	// NVENC, which I would have liked to use, is apparently broken for the new version of OpenCV.
 	bool bOpened;
 	if (bUseCamera)
 	{
-		// Works but very low frame rate. 
+		// Works but very low frame rate and long start-up times.
+		// Doesn't use any hardware acceleration.
+		// Performance could be increased by using hardware acceleration (ksvideosrc and NVENC).
 		std::string GPipeline = 
 		std::basic_string("autovideosrc")
 		+ " ! videoconvert"
@@ -110,21 +110,22 @@ void UCameraReader::InitialiseVideoStream()
 	}
 	else
 	{
-		// Works well but CPU only.
-		/*std::string GPipeline = 
+		// Works well and is automatically using some type of hardware acceleration.
+		// Performance could be increased by moving video reading to another thread.
+		std::string GPipeline = 
 		"filesrc location=" + std::basic_string(TCHAR_TO_UTF8(*VideoFileLocation))
 		+ " ! decodebin"
 		+ " ! videoconvert"
-		+ " ! appsink";*/
+		+ " ! appsink";
 
 		// Experiment.
-		std::string GPipeline = 
+		/*std::string GPipeline = 
 		"filesrc location=" + std::basic_string(TCHAR_TO_UTF8(*VideoFileLocation))
 		+ " ! qtdemux name=demux demux.video_0"
 		+ " ! queue"
 		+ " ! h264parse"
 		+ " ! omxh264dec"
-		+ " ! appsink";
+		+ " ! appsink";*/
 		
 		bOpened = VideoStream.open(GPipeline, cv::CAP_GSTREAMER);
 
@@ -177,21 +178,21 @@ void UCameraReader::PrintVideoStreamProperties() const
 	//char* CodecCharPtr[4];
 	//std::memcpy(CodecCharPtr, &Codec, 4);
 	//const char* CodecCharPtr = (reinterpret_cast<char*>(&Codec));
-	Output.Appendf(TEXT("\nCodec: %d %d %d %d"), Codec & 255, (Codec >> 8) & 255, (Codec >> 16) & 255, (Codec >> 24) & 255);
+	Output.Appendf(TEXT("\nCodec: %c %c %c %c"), Codec & 255, (Codec >> 8) & 255, (Codec >> 16) & 255, (Codec >> 24) & 255);
 	//delete CodecCharPtr[4];
 	UE_LOG(LogBlinkOpenCV, Display, TEXT("%s"), *Output);
 }
 
 void UCameraReader::ProcessNextFrame(cv::Mat& Frame)
 {
-	if (bResize && ResizeDimensions.X > 2 && ResizeDimensions.Y > 2)
+	/*if (bResize && ResizeDimensions.X > 2 && ResizeDimensions.Y > 2)
 	{
 		const auto Resolution = cv::Size(ResizeDimensions.X, ResizeDimensions.Y);
 		cv::cuda::GpuMat CMat;
 		CMat.upload(Frame);
 		cv::cuda::resize(CMat, CMat, Resolution);
 		CMat.download(Frame);
-	}
+	}*/
 }
 
 void UCameraReader::Start()
