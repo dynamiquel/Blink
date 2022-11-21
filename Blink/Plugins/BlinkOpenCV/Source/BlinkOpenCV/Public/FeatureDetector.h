@@ -3,14 +3,13 @@
 #include "PreOpenCVHeaders.h"
 #include <opencv2/core.hpp>
 #include "PostOpenCVHeaders.h"
-#include "Containers/CircularQueue.h"
 
-class UCameraReader;
+class FVideoReader;
 
-class BLINKOPENCV_API FFeatureDetector : public FRunnable, FSingleThreadRunnable
+class BLINKOPENCV_API FFeatureDetector : public FRunnable
 {
 public:
-	FFeatureDetector(UCameraReader* InCameraReader);
+	FFeatureDetector(FVideoReader* InVideoReader);
 	
 public:
 	// Overriden from FRunnable
@@ -18,12 +17,7 @@ public:
 	virtual uint32 Run() override;
 	virtual void Exit() override;
 	virtual void Stop() override;
-	virtual FSingleThreadRunnable* GetSingleThreadInterface() override { return this; }
 	virtual ~FFeatureDetector() override;
-	// -----------------------
-	// Overriden from FSingleRunnable
-	virtual void Tick() override;
-	// -----------------------
 
 protected:
 	const TCHAR* ThreadName = TEXT("UnnamedFeatureDetectorThread");
@@ -34,7 +28,7 @@ private:
 	bool bActive = false;
 	float RefreshRate = .05f;
 
-	UCameraReader* CameraReader = nullptr;
+	FVideoReader* VideoReader = nullptr;
 	double PreviousTime = 0;
 	double ST_TimeUntilRefresh = 0;
 
@@ -47,5 +41,10 @@ protected:
 
 private:
 	cv::Mat GetNextFrame() const;
+
+	/**
+	 * @brief Keeps track of delta-time in a thread-independent way.
+	 * @return The current delta time.
+	 */
 	double UpdateAndGetDeltaTime();
 };

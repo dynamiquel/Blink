@@ -1,14 +1,8 @@
 ﻿#pragma once
 
-#include "PreOpenCVHeaders.h"
-#include <opencv2/core.hpp>
-#include <opencv2/videoio.hpp>
-#include <opencv2/imgproc.hpp>
-#include "opencv2/highgui.hpp"
-#include "PostOpenCVHeaders.h"
-
 #include "CameraReader.generated.h"
 
+class FVideoReader;
 /**
  * @brief Use Activate() to establish the connection to a VideoStream.
  * 
@@ -28,8 +22,15 @@ protected:
 	
 public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void Activate(bool bReset) override;
 	
 public:
+	/**
+	 * @brief The tick rate of the VideoReader thread.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Camera", meta = (ClampMin=0.f, ClampMax=1.f))
+	float VideoReaderTickRate;
+	
 	/**
 	 * @brief If enabled, the VideoStream will use a camera device as a source, otherwise, it will use a video file.
 	 */
@@ -74,57 +75,21 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Camera", meta = (EditCondition="bShowInSeparateWindow", EditConditionHides))
 	FString WindowName;
 
-private:
-	cv::VideoCapture VideoStream;
-	TSharedPtr<cv::Mat> CurrentFrame;
-	bool VideoActive;
+protected:
+	FVideoReader* VideoReader;
 
 public:
 	// Overriden so the VideoStream can be stopped and released upon Destroy. 
 	virtual void BeginDestroy() override;
+	
 	// Overriden so the VideoStream can be stopped and released upon Deactivation. 
 	virtual void Deactivate() override;
-	
-	/**
-	 * @brief Gets the current fully-processed frame.
-	 */
-	cv::Mat GetFrame() const
-	{
-		if (CurrentFrame.IsValid() && CurrentFrame->data)
-			return *CurrentFrame;
-		return cv::Mat();
-	}
-
-protected:
-	/**
-	 * @brief Executed whenever a new frame has been retrieved from the VideoStream.
-	 * Executes at most once per Tick.
-	 * @param Frame The current frame from the VideoStream.
-	 */
-	virtual void ProcessNextFrame(cv::Mat& Frame);
-	
-	/**
-	 * @brief Override this to add any logic that should be executed everytime the VideoStream has been initialised and
-	 * is ready to be read from.
-	 */
-	virtual void Start();
-
-	/**
-	 * @brief Override this to add any logic that should be executed everytime the VideoStream is closed.
-	 * I.e. releasing and cleaning up objects.
-	 */
-	virtual void Stop();
-
-private:
-	/**
-	 * @brief Establishes the connection to the VideoStream.
-	 */
-	void InitialiseVideoStream();
 	
 	/**
 	 * @brief Output the OpenCV build info, so we know which modules are active.
 	 */
 	static void PrintOpenCVBuildInfo();
 
-	void PrintVideoStreamProperties() const;
+protected:
+	void Stop();
 };

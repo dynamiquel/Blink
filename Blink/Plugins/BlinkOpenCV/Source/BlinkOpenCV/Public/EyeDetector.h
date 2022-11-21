@@ -4,7 +4,7 @@
 class BLINKOPENCV_API FEyeDetector : public FFeatureDetector
 {
 public:
-	FEyeDetector(UCameraReader* InCameraReader);
+	FEyeDetector(FVideoReader* InVideoReader);
 	
 protected:
 	virtual uint32 ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime) override;

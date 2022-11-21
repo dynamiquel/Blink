@@ -4,7 +4,7 @@
 #include "BlinkPlayerController.h"
 
 #include "BlinkOpenCV.h"
-#include "TestCameraReader.h"
+#include "CameraReader.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 
@@ -13,7 +13,7 @@ ABlinkPlayerController::ABlinkPlayerController()
 {
 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-	CameraReader = CreateDefaultSubobject<UTestCameraReader>(TEXT("CameraReader"));
+	CameraReader = CreateDefaultSubobject<UCameraReader>(TEXT("CameraReader"));
 }
 
 // Called when the game starts or when spawned

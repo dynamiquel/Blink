@@ -11,8 +11,8 @@
 #include <opencv2/cudafeatures2d.hpp>
 #include "PostOpenCVHeaders.h"
 
-FEyeDetector::FEyeDetector(UCameraReader* InCameraReader)
-	: FFeatureDetector(InCameraReader)
+FEyeDetector::FEyeDetector(FVideoReader* InVideoReader)
+	: FFeatureDetector(InVideoReader)
 {
 	ThreadName = TEXT("EyeDetectorThread");
 }
@@ -30,5 +30,4 @@ uint32 FEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime)
 	Src.download(Frame);
 
 	return 0;
-	//return FFeatureDetector::ProcessNextFrame(Frame, DeltaTime);
 }
