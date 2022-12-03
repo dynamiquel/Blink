@@ -14,7 +14,8 @@ public class Blink : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"InputCore",
-			"BlinkOpenCV"
+			"BlinkOpenCV",
+			"Asclepius"
 		});
 	}
 }

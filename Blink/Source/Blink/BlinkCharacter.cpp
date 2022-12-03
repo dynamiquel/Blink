@@ -2,38 +2,72 @@
 
 #include "BlinkCharacter.h"
 #include "BlinkProjectile.h"
+#include "TP_PickUpComponent.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/InputSettings.h"
+#include "AsclepiusHealth.h"
+#include "BlinkGameMode.h"
+#include "GameFramework/PlayerState.h"
 
 
 //////////////////////////////////////////////////////////////////////////
 // ABlinkCharacter
 
-ABlinkCharacter::ABlinkCharacter()
+ABlinkCharacter::ABlinkCharacter(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	// Set size for collision capsule
-	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
+	GetCapsuleComponent()->InitCapsuleSize(44.f, 96.0f);
 
 	// set our turn rates for input
 	TurnRateGamepad = 45.f;
 
 	// Create a CameraComponent	
-	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
-	FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
-	FirstPersonCameraComponent->SetRelativeLocation(FVector(-39.56f, 1.75f, 64.f)); // Position the camera
-	FirstPersonCameraComponent->bUsePawnControlRotation = true;
+	FirstPersonCameraComponent = CreateOptionalDefaultSubobject<UCameraComponent>(TEXT("FirstPersonCamera"));
+	// Since the comp is optional, need to check if it was created.
+	if (FirstPersonCameraComponent)
+	{
+		FirstPersonCameraComponent->SetupAttachment(GetCapsuleComponent());
+		FirstPersonCameraComponent->SetRelativeLocation(FVector(-39.56f, 1.75f, 64.f)); // Position the camera
+		FirstPersonCameraComponent->bUsePawnControlRotation = true;
+	}
 
 	// Create a mesh component that will be used when being viewed from a '1st person' view (when controlling this pawn)
-	Mesh1P = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("CharacterMesh1P"));
-	Mesh1P->SetOnlyOwnerSee(true);
-	Mesh1P->SetupAttachment(FirstPersonCameraComponent);
-	Mesh1P->bCastDynamicShadow = false;
-	Mesh1P->CastShadow = false;
-	Mesh1P->SetRelativeRotation(FRotator(1.9f, -19.19f, 5.2f));
-	Mesh1P->SetRelativeLocation(FVector(-0.5f, -4.4f, -155.7f));
+	Mesh1P = CreateOptionalDefaultSubobject<USkeletalMeshComponent>(TEXT("CharacterMesh1P"));
+	if (Mesh1P)
+	{
+		Mesh1P->SetOnlyOwnerSee(true);
+		Mesh1P->SetupAttachment(FirstPersonCameraComponent);
+		Mesh1P->bCastDynamicShadow = false;
+		Mesh1P->CastShadow = false;
+		Mesh1P->SetRelativeRotation(FRotator(1.9f, -19.19f, 5.2f));
+		Mesh1P->SetRelativeLocation(FVector(-0.5f, -4.4f, -155.7f));
+	}
+
+	// Create the health component.
+	HealthComponent = CreateDefaultSubobject<UAsclepiusHealthComponent>(TEXT("Health"));
+}
+
+float ABlinkCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
+	AActor* DamageCauser)
+{	
+	// Does all the damage modifier calculations.
+	DamageAmount = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	
+	if (DamageAmount != 0 && IsValid(HealthComponent))
+	{
+		// Converts the given DamageType class reference to an object reference.
+		UDamageType const* const DamageTypeCDO = DamageEvent.DamageTypeClass ? DamageEvent.DamageTypeClass->GetDefaultObject<UDamageType>() : GetDefault<UDamageType>();
+
+		float LeftOverDamage;
+		// Sends the damage to the health component so it can do the rest of the damage modifier calculations and
+		// set health/shields values.
+		DamageAmount = HealthComponent->InflictDamage(DamageAmount, LeftOverDamage, DamageTypeCDO);
+	}
+
+	return DamageAmount;
 }
 
 void ABlinkCharacter::BeginPlay()
@@ -41,9 +75,58 @@ void ABlinkCharacter::BeginPlay()
 	// Call the base class  
 	Super::BeginPlay();
 
+	HealthComponent->OnLifeStateChanged.AddUniqueDynamic(this, &ABlinkCharacter::HandleLifeStateChanged);
+}
+
+float ABlinkCharacter::InternalTakePointDamage(float Damage, FPointDamageEvent const& PointDamageEvent,
+	AController* EventInstigator, AActor* DamageCauser)
+{
+	if (HealthComponent)
+	{		
+		const float PrecisionDamageMultiplier = HealthComponent->GetBoneDamageMultiplier(PointDamageEvent.HitInfo.BoneName);
+		Damage *= PrecisionDamageMultiplier;
+	}
+	
+	return Damage;
 }
 
 //////////////////////////////////////////////////////////////////////////// Input
+
+void ABlinkCharacter::HandleLifeStateChanged(const UAsclepiusHealthComponent* Sender,
+	const EAsclepiusLifeState NewLiveState)
+{
+	switch (NewLiveState)
+	{
+		case EAsclepiusLifeState::Alive:
+			break;
+		case EAsclepiusLifeState::Downed:
+			break;
+		case EAsclepiusLifeState::Dead:
+			// Destroy actor in 10 seconds.
+			OnDeath();
+			break;
+	}
+}
+
+void ABlinkCharacter::OnDeath_Implementation()
+{
+	// Quick way of determining if enemy or not, cba doing it the proper way.
+	if (GetController() && GetController()->IsPlayerController())
+	{
+		GetWorld()->GetAuthGameMode<ABlinkGameMode>()->PlayerDied();
+	}
+	else
+	{
+		GetWorld()->GetAuthGameMode<ABlinkGameMode>()->EnemyKilled();
+	}
+	
+	FTimerHandle DestroyTimer;
+	GetWorldTimerManager().SetTimer(DestroyTimer, FTimerDelegate::CreateLambda([this]()
+	{
+		if (IsValid(this))
+			Destroy();
+	}), 0.1f, false);
+}
 
 void ABlinkCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {

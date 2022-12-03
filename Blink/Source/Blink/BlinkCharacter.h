@@ -2,8 +2,10 @@
 
 #pragma once
 
+
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "AsclepiusLifeState.h"
 #include "BlinkCharacter.generated.h"
 
 class UInputComponent;
@@ -17,11 +19,13 @@ class USoundBase;
 // It is declared as dynamic so it can be accessed also in Blueprints
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnUseItem);
 
+class UAsclepiusHealthComponent;
 UCLASS(config=Game)
 class ABlinkCharacter : public ACharacter
 {
 	GENERATED_BODY()
 
+protected:
 	/** Pawn mesh: 1st person view (arms; seen only by self) */
 	UPROPERTY(VisibleDefaultsOnly, Category=Mesh)
 	USkeletalMeshComponent* Mesh1P;
@@ -30,11 +34,17 @@ class ABlinkCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FirstPersonCameraComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	UAsclepiusHealthComponent* HealthComponent;
+
 public:
-	ABlinkCharacter();
+	ABlinkCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 protected:
 	virtual void BeginPlay();
+	virtual float InternalTakePointDamage(float Damage, FPointDamageEvent const& PointDamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
 public:
 	/** Base turn rate, in deg/sec. Other scaling may affect final turn rate. */
@@ -44,8 +54,8 @@ public:
 	/** Delegate to whom anyone can subscribe to receive this event */
 	UPROPERTY(BlueprintAssignable, Category = "Interaction")
 	FOnUseItem OnUseItem;
-protected:
 	
+protected:
 	/** Fires a projectile. */
 	void OnPrimaryAction();
 
@@ -79,6 +89,12 @@ protected:
 	void EndTouch(const ETouchIndex::Type FingerIndex, const FVector Location);
 	void TouchUpdate(const ETouchIndex::Type FingerIndex, const FVector Location);
 	TouchData	TouchItem;
+
+	UFUNCTION()
+	void HandleLifeStateChanged(const UAsclepiusHealthComponent* Sender, const EAsclepiusLifeState NewLiveState);
+
+	UFUNCTION(BlueprintNativeEvent)
+	void OnDeath();
 	
 protected:
 	// APawn interface
