@@ -12,7 +12,6 @@ private:
 	FEyeDetector* EyeDetector = nullptr;
 
 protected:
-	virtual void ProcessNextFrame(cv::Mat& Frame) override;
 	virtual void Start() override;
 	virtual void Exit() override;
 };

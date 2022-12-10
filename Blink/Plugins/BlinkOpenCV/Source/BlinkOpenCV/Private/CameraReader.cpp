@@ -35,11 +35,7 @@ void UCameraReader::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 
 	// Window rendering can only be done from the game thread, hence why it is being done here.
 	if (bShowInSeparateWindow && VideoReader)
-	{
-		const auto Frame = VideoReader->GetFrame();
-		if (Frame.data != nullptr)
-			cv::imshow(TCHAR_TO_UTF8(*WindowName), VideoReader->GetFrame().clone());
-	}
+		VideoReader->Render();
 	#endif
 }
 
@@ -72,12 +68,6 @@ void UCameraReader::Activate(bool bReset)
 				VideoReaderTickRate,
 				bResize ? ResizeDimensions : FVector2D());
 		}
-
-		if (bShowInSeparateWindow)
-		{
-			cv::namedWindow(TCHAR_TO_UTF8(*WindowName));
-			cv::resizeWindow(TCHAR_TO_UTF8(*WindowName), 1280, 720);
-		}
 	}
 }
 
@@ -102,10 +92,10 @@ void UCameraReader::Stop()
 {
 	if (VideoReader)
 	{
+		if (bShowInSeparateWindow)
+			VideoReader->StopRendering();
+		
 		delete VideoReader;
 		VideoReader = nullptr;
-
-		if (bShowInSeparateWindow)
-			cv::destroyWindow(TCHAR_TO_UTF8(*WindowName));
 	}
 }

@@ -80,6 +80,18 @@ void FFeatureDetector::Stop()
 	bActive = false;
 }
 
+void FFeatureDetector::Render()
+{
+	const auto Frame = GetCurrentFrame();
+	if (Frame && Frame->data != nullptr)
+		cv::imshow(TCHAR_TO_UTF8(ThreadName), Frame->clone());
+}
+
+void FFeatureDetector::StopRendering()
+{
+	cv::destroyWindow(TCHAR_TO_UTF8(ThreadName));
+}
+
 FFeatureDetector::~FFeatureDetector()
 {
 	// Executed on game thread.

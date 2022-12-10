@@ -11,14 +11,14 @@ FTestVideoReader::FTestVideoReader(const FString& InVideoSource, float InRefresh
 
 void FTestVideoReader::Exit()
 {
-	FVideoReader::Exit();
-
 	if (EyeDetector)
 	{
+		RemoveChildRenderer(EyeDetector);
 		delete EyeDetector;
 		EyeDetector = nullptr;
-		cv::destroyWindow("Eye Result");
 	}
+	
+	FVideoReader::Exit();
 }
 
 void FTestVideoReader::Start()
@@ -26,20 +26,7 @@ void FTestVideoReader::Start()
 	FVideoReader::Start();
 	
 	if (!EyeDetector)
-	{
-		cv::namedWindow("Eye Result", cv::WINDOW_NORMAL);
 		EyeDetector = new FEyeDetector(this);
-	}
-}
 
-void FTestVideoReader::ProcessNextFrame(cv::Mat& Frame)
-{
-	FVideoReader::ProcessNextFrame(Frame);
-	
-	if (EyeDetector)
-	{
-		const auto ThreadFrame = EyeDetector->GetCurrentFrame();
-		if (ThreadFrame->data != nullptr)
-			cv::imshow("Eye Result", *ThreadFrame);
-	}
+	AddChildRenderer(EyeDetector);
 }

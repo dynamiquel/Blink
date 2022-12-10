@@ -11,12 +11,15 @@
 #include <opencv2/cudawarping.hpp>
 #include <opencv2/cudacodec.hpp>
 #include "PostOpenCVHeaders.h"
+#include "Renderable.h"
 
-class BLINKOPENCV_API FVideoReader : public FRunnable
+class BLINKOPENCV_API FVideoReader : public FRunnable, public FRenderable
 {
 public:
-	FVideoReader(int32 InCameraIndex, float InRefreshRate = 1.f/30.f, FVector2D InResizeDimensions = FVector2D());
-	FVideoReader(const FString& InVideoSource, float InRefreshRate = 1.f/30.f, FVector2D InResizeDimensions = FVector2D());
+	FVideoReader(int32 InCameraIndex, float InRefreshRate = 1.f / 30.f, FVector2D InResizeDimensions = FVector2D(),
+	             const FString InWindowName = "Camera");
+	FVideoReader(const FString& InVideoSource, float InRefreshRate = 1.f / 30.f,
+	             FVector2D InResizeDimensions = FVector2D(), const FString InWindowName = "Video");
 	
 public:
 	// Overriden from FRunnable
@@ -24,6 +27,11 @@ public:
 	virtual uint32 Run() override;
 	virtual void Exit() override;
 	virtual void Stop() override;
+
+	// Overriden from FRenderable
+	virtual void Render() override;
+	virtual void StopRendering() override;
+	
 	virtual ~FVideoReader() override;
 
 private:
@@ -32,6 +40,7 @@ private:
 	std::string VideoSource;
 	cv::Point ResizeDimensions;
 	float RefreshRate;
+	std::string WindowName;
 
 	// State vars.
 	FRunnableThread* Thread;
@@ -40,6 +49,7 @@ private:
 	TSharedPtr<cv::Mat> CurrentFrame;
 	bool bVideoActive;
 	double PreviousTime;
+	TArray<FRenderable*> ChildRenderers;
 	
 public:
 	/**
@@ -48,7 +58,7 @@ public:
 	cv::Mat GetFrame() const
 	{
 		if (CurrentFrame.IsValid() && CurrentFrame->data)
-			return *CurrentFrame;
+			return CurrentFrame->clone();
 		return cv::Mat();
 	}
 
@@ -67,6 +77,10 @@ protected:
 	 * is ready to be read from.
 	 */
 	virtual void Start();
+
+	void AddChildRenderer(FRenderable* ChildRenderer);
+	void RemoveChildRenderer(FRenderable* ChildRenderer);
+	bool HasChildRenderer(FRenderable* ChildRenderer) const;
 
 private:
 	/**

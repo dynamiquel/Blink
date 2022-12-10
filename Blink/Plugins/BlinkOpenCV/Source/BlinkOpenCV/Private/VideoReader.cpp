@@ -1,7 +1,7 @@
 ﻿#include "VideoReader.h"
 #include "BlinkOpenCV.h"
 
-FVideoReader::FVideoReader(int32 InCameraIndex, float InRefreshRate, FVector2D InResizeDimensions)
+FVideoReader::FVideoReader(int32 InCameraIndex, float InRefreshRate, FVector2D InResizeDimensions, const FString InWindowName)
 {
 	// Executed on game thread.
 	
@@ -13,12 +13,13 @@ FVideoReader::FVideoReader(int32 InCameraIndex, float InRefreshRate, FVector2D I
 	bVideoActive = false;
 	CurrentFrame = MakeShared<cv::Mat>();
 	PreviousTime = 0;
+	WindowName = TCHAR_TO_UTF8(*InWindowName);
 
 	Thread = FRunnableThread::Create(this, TEXT("VideoReader"), 0, TPri_AboveNormal);
 	checkf(Thread, TEXT("Could not create Thread '%s'"), TEXT("VideoReader"));
 }
 
-FVideoReader::FVideoReader(const FString& InVideoSource, float InRefreshRate, FVector2D InResizeDimensions)
+FVideoReader::FVideoReader(const FString& InVideoSource, float InRefreshRate, FVector2D InResizeDimensions, const FString InWindowName)
 {
 	// Executed on game thread.
 	
@@ -28,6 +29,7 @@ FVideoReader::FVideoReader(const FString& InVideoSource, float InRefreshRate, FV
 	bVideoActive = false;
 	CurrentFrame = MakeShared<cv::Mat>();
 	PreviousTime = 0;
+	WindowName = TCHAR_TO_UTF8(*InWindowName);
 
 	Thread = FRunnableThread::Create(this, TEXT("VideoReader"), 0, TPri_AboveNormal);
 	checkf(Thread, TEXT("Could not create Thread '%s'"), TEXT("VideoReader"));
@@ -119,6 +121,26 @@ void FVideoReader::Stop()
 	bThreadActive = false;
 }
 
+void FVideoReader::Render()
+{
+	const auto Frame = GetFrame();
+	if (Frame.data != nullptr)
+		cv::imshow(WindowName, Frame);
+
+	// Render any child renderers.
+	for (const auto ChildRenderer : ChildRenderers)
+		if (ChildRenderer)
+			ChildRenderer->Render();
+}
+
+void FVideoReader::StopRendering()
+{
+	cv::destroyWindow(WindowName);
+	for (const auto ChildRenderer : ChildRenderers)
+		if (ChildRenderer)
+			ChildRenderer->StopRendering();
+}
+
 FVideoReader::~FVideoReader()
 {
 	// Executed on game thread.
@@ -152,6 +174,21 @@ void FVideoReader::Start()
 	
 	UE_LOG(LogBlinkOpenCV, Display, TEXT("VideoaReader: Started (camera initialised)"));	
 	bVideoActive = true;
+}
+
+void FVideoReader::AddChildRenderer(FRenderable* ChildRenderer)
+{
+	ChildRenderers.AddUnique(ChildRenderer);
+}
+
+void FVideoReader::RemoveChildRenderer(FRenderable* ChildRenderer)
+{
+	ChildRenderers.Remove(ChildRenderer);
+}
+
+bool FVideoReader::HasChildRenderer(FRenderable* ChildRenderer) const
+{
+	return ChildRenderers.Contains(ChildRenderer);
 }
 
 void FVideoReader::InitialiseVideoStream()
