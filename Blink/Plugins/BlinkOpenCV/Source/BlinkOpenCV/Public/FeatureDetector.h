@@ -39,7 +39,7 @@ protected:
 private:
 	FRunnableThread* Thread = nullptr;
 	bool bActive = false;
-	float RefreshRate = .05f;
+	float RefreshRate = .03f;
 
 	FVideoReader* VideoReader = nullptr;
 	double PreviousTime = 0;

@@ -1,4 +1,4 @@
-﻿#include "EyeDetector.h"
+﻿#include "CascadeEyeDetector.h"
 
 #include "PreOpenCVHeaders.h"
 #include "opencv2/imgproc.hpp"
@@ -9,9 +9,11 @@
 #include <opencv2/cudaobjdetect.hpp>
 #include <opencv2/cudawarping.hpp>
 #include <opencv2/cudafeatures2d.hpp>
+
+#include "BlinkOpenCV.h"
 #include "PostOpenCVHeaders.h"
 
-FEyeDetector::FEyeDetector(FVideoReader* InVideoReader)
+FCascadeEyeDetector::FCascadeEyeDetector(FVideoReader* InVideoReader)
 	: FFeatureDetector(InVideoReader)
 {
 	ThreadName = TEXT("EyeDetectorThread");
@@ -36,30 +38,74 @@ FEyeDetector::FEyeDetector(FVideoReader* InVideoReader)
 	EyeClassifier = cv::makePtr<cv::CascadeClassifier>(TCHAR_TO_UTF8(*CascadeFilePath));
 }
 
-uint32 FEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime)
+uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime)
 {
 	cv::cuda::GpuMat Src;
 	Src.upload(Frame);
 	cv::cuda::cvtColor(Src, Src, cv::COLOR_BGR2GRAY);
 	Src.download(Frame);
-	
-	EEyeStatus EyeStatus = GetEyeStatusFromFrame(Frame);
 
+	// Get the assumed eye status from frame.
+	const EEyeStatus FrameEyeStatus = GetEyeStatusFromFrame(Frame);
+	
+	UpdateEyeState(FrameEyeStatus, DeltaTime);
+	
+	// Do additional processing to determine the actual eye status by taking errors into account.
+	const EEyeStatus ErroredEyeStatus = GetEyeStatusWithError(FrameEyeStatus);
+
+	UE_LOG(LogBlinkOpenCV, Warning, TEXT("State: %s"), *UEnum::GetValueAsString(FrameEyeStatus));
+	UE_LOG(LogBlinkOpenCV, Error, TEXT("State: %s"), *UEnum::GetValueAsString(ErroredEyeStatus));
 	return 0;
 }
 
-std::vector<cv::Rect> FEyeDetector::GetFaces(const cv::Mat& Frame) const
+cv::Rect FCascadeEyeDetector::GetFace(const cv::Mat& Frame) const
 {
 	checkf(FaceClassifier, TEXT("The OpenCV Face cascade filter is null."));
-	
+
+	// Finds potential faces from frame.
 	std::vector<cv::Rect> Faces;
 	FaceClassifier->detectMultiScale(Frame, OUT Faces, 1.3f, 5,
 		cv::CASCADE_FIND_BIGGEST_OBJECT,
 		cv::Size(MinFaceSize, MinFaceSize));
-	return Faces;
+
+	DrawPreFilteredFaces(Frame, Faces);
+
+	FilterFaces(Frame, IN OUT Faces);
+
+	// This will most likely be the real face.
+	if (Faces.size() > 0)
+	{
+		DrawFace(Frame, Faces[0]);
+		return Faces[0];
+	}
+	
+	return cv::Rect();
 }
 
-void FEyeDetector::GetEyes(const cv::Mat& Frame, const cv::Rect& Face, cv::Rect& LeftEye, cv::Rect& RightEye) const
+void FCascadeEyeDetector::FilterFaces(const cv::Mat& Frame, std::vector<cv::Rect>& Faces) const
+{
+	if (Faces.size() < 2)
+		return;
+	
+	// If multiple faces detected, choose the biggest face as this will most likely be the real one.
+	int32 BiggestFaceIndex = 0;
+	float BiggestArea = 0;
+	for (int32 i = 0; i < Faces.size(); i++)
+	{
+		const float Area = Faces[i].area();
+		if (Area > BiggestArea)
+		{
+			BiggestFaceIndex = i;
+			BiggestArea = Area;
+		}
+	}
+
+	cv::Rect BiggestFace = Faces[BiggestFaceIndex];
+	Faces.clear();
+	Faces.emplace_back(BiggestFace);
+}
+
+void FCascadeEyeDetector::GetEyes(const cv::Mat& Frame, const cv::Rect& Face, cv::Rect& LeftEye, cv::Rect& RightEye) const
 {
 	checkf(EyeClassifier, TEXT("The OpenCV Eye cascade filter is null."));
 
@@ -70,30 +116,33 @@ void FEyeDetector::GetEyes(const cv::Mat& Frame, const cv::Rect& Face, cv::Rect&
 
 	DrawEyeArea(Frame, LeftEyeArea);
 	DrawEyeArea(Frame, RightEyeArea);
-	
+
+	// Search for eyes in the calculated Left Eye Area.
 	auto FaceRoi = Frame(LeftEyeArea);
 	std::vector<cv::Rect> LeftEyes;
 	EyeClassifier->detectMultiScale(
 		FaceRoi,
 		OUT LeftEyes,
-		1.1,
+		1.3,
 		2,
 		cv::CASCADE_SCALE_IMAGE,
 		cv::Size(MinEyeSize, MinEyeSize));
 
+	// Search for eyes in the calculated Right Eye Area.
 	FaceRoi = Frame(RightEyeArea);
 	std::vector<cv::Rect> RightEyes;
 	EyeClassifier->detectMultiScale(
 		FaceRoi,
 		OUT RightEyes,
-		1.1,
+		1.3,
 		2,
 		cv::CASCADE_SCALE_IMAGE,
 		cv::Size(MinEyeSize, MinEyeSize));
 
 	DrawPreFilteredEyes(Frame, LeftEyeArea, LeftEyes);
 	DrawPreFilteredEyes(Frame, RightEyeArea, RightEyes);
-	
+
+	// Remove eyes that are likely false positives.
 	FilterEyes(IN OUT LeftEyes, IN OUT RightEyes, Face);
 
 	if (LeftEyes.size() > 0)
@@ -105,7 +154,7 @@ void FEyeDetector::GetEyes(const cv::Mat& Frame, const cv::Rect& Face, cv::Rect&
 	DrawEye(Frame, RightEyeArea, RightEye);
 }
 
-void FEyeDetector::TrimFaceToEyes(const cv::Rect& Face, cv::Rect& LeftEyeArea, cv::Rect& RightEyeArea)
+void FCascadeEyeDetector::TrimFaceToEyes(const cv::Rect& Face, cv::Rect& LeftEyeArea, cv::Rect& RightEyeArea)
 {
 	// Trim the Face rect to roughly only include the eyes area.
 	
@@ -124,7 +173,7 @@ void FEyeDetector::TrimFaceToEyes(const cv::Rect& Face, cv::Rect& LeftEyeArea, c
 	RightEyeArea.x = Face.x + (Face.width * .83f) - RightEyeArea.width;
 }
 
-void FEyeDetector::FilterEyes(std::vector<cv::Rect>& LeftEyes, std::vector<cv::Rect>& RightEyes, const cv::Rect& Face)
+void FCascadeEyeDetector::FilterEyes(std::vector<cv::Rect>& LeftEyes, std::vector<cv::Rect>& RightEyes, const cv::Rect& Face) const
 {
 	// Basic algorithm to determine which eyes are the real ones.
 
@@ -183,13 +232,13 @@ void FEyeDetector::FilterEyes(std::vector<cv::Rect>& LeftEyes, std::vector<cv::R
 	}
 }
 
-bool FEyeDetector::IsEyeTooLarge(const cv::Rect& Eye, const cv::Rect& Face)
+bool FCascadeEyeDetector::IsEyeTooLarge(const cv::Rect& Eye, const cv::Rect& Face)
 {
 	const float EyeProportion = (float)Eye.area() / (float)Face.area();
 	return EyeProportion >= .1f;
 }
 
-void FEyeDetector::DrawFaces(const cv::Mat& Frame, const std::vector<cv::Rect>& Faces) const
+void FCascadeEyeDetector::DrawPreFilteredFaces(const cv::Mat& Frame, const std::vector<cv::Rect>& Faces) const
 {
 	// Show faces on frame as a rectangle.
 	for (auto Face : Faces)
@@ -200,14 +249,21 @@ void FEyeDetector::DrawFaces(const cv::Mat& Frame, const std::vector<cv::Rect>& 
 	}
 }
 
-void FEyeDetector::DrawEyeArea(const cv::Mat& Frame, const cv::Rect& EyeArea) const
+void FCascadeEyeDetector::DrawFace(const cv::Mat& Frame, const cv::Rect& Face) const
+{
+	cv::rectangle(Frame,
+			{Face.x, Face.y}, {Face.x + Face.width, Face.y + Face.height},
+			{175, 255, 0}, 2);
+}
+
+void FCascadeEyeDetector::DrawEyeArea(const cv::Mat& Frame, const cv::Rect& EyeArea) const
 {
 	cv::rectangle(Frame,
 			{EyeArea.x, EyeArea.y}, {EyeArea.x + EyeArea.width, EyeArea.y + EyeArea.height},
 			{125, 255, 0}, 2);
 }
 
-void FEyeDetector::DrawPreFilteredEyes(const cv::Mat& Frame, const cv::Rect& Face, const std::vector<cv::Rect>& Eyes) const
+void FCascadeEyeDetector::DrawPreFilteredEyes(const cv::Mat& Frame, const cv::Rect& Face, const std::vector<cv::Rect>& Eyes) const
 {
 	// Show eyes on frame as a rectangle.
 	for (auto Eye : Eyes)
@@ -218,72 +274,80 @@ void FEyeDetector::DrawPreFilteredEyes(const cv::Mat& Frame, const cv::Rect& Fac
 	}
 }
 
-void FEyeDetector::DrawEye(const cv::Mat& Frame, const cv::Rect& EyeArea, const cv::Rect& Eye) const
+void FCascadeEyeDetector::DrawEye(const cv::Mat& Frame, const cv::Rect& EyeArea, const cv::Rect& Eye) const
 {
 	const auto EyeCentre = cv::Point(Eye.x + Eye.width / 2, Eye.y + Eye.height / 2);
 	const int32 Radius = FMath::RoundToInt((Eye.width + Eye.height) * .15f);
 	cv::circle(Frame(EyeArea), EyeCentre, Radius, {150, 255, 255}, 1);
 }
 
-FVector2D FEyeDetector::GetEyeAspectRatios(const std::vector<cv::Rect>& Eyes)
-{
-	FVector2D EyeAspectRatios;
-	
-	if (Eyes.size() > 0)
-		EyeAspectRatios.X = (float)Eyes[0].width / (float)Eyes[0].height;
-	if (Eyes.size() > 1)
-		EyeAspectRatios.Y = (float)Eyes[1].width / (float)Eyes[1].height;
-
-	return EyeAspectRatios;
-}
-
-int32 FEyeDetector::GetEyesUnderAspectRatioThreshold(const FVector2D& EyesAspectRatios) const
-{
-	int32 UnderAspectRatioThreshold = 0;
-
-	if (EyesAspectRatios.X < EyeClosedAspectRatioThreshold)
-		UnderAspectRatioThreshold++;
-	if (EyesAspectRatios.Y < EyeClosedAspectRatioThreshold)
-		UnderAspectRatioThreshold++;
-
-	return UnderAspectRatioThreshold;
-}
-
-EEyeStatus FEyeDetector::GetEyeStatusFromFrame(const cv::Mat& Frame)
+EEyeStatus FCascadeEyeDetector::GetEyeStatusFromFrame(const cv::Mat& Frame) const
 {
 	// Get faces.
-	const std::vector<cv::Rect> Faces = GetFaces(Frame);
-	DrawFaces(Frame, Faces);
-	
-	// Treat more or less than one face found as an error.
-	// Could be further developed to deal with multiple faces.
-	if (Faces.size() != 1)
+	const cv::Rect Face = GetFace(Frame);
+	if (Face.empty())
 		return EEyeStatus::Error;
 	
 	// Get eyes.
 	cv::Rect LeftEye, RightEye;
-	GetEyes(Frame, Faces[0], OUT LeftEye, OUT RightEye);
-	//DrawEyes(Frame, Faces[0], Eyes);
+	GetEyes(Frame, Face, OUT LeftEye, OUT RightEye);
 	
 	// Treat no eyes found as a blink.
-	/*if (Eyes.size() == 0)
+	if (LeftEye.empty() && RightEye.empty())
 		return EEyeStatus::Blink;
-	
-	// Get the aspect ratio of the eyes and determine if its a closed eye.
-	const FVector2D EyeAspectRatios = GetEyeAspectRatios(Eyes);
-	int32 NumClosedEyes = GetEyesUnderAspectRatioThreshold(EyeAspectRatios);
-	
-	switch (NumClosedEyes)
-	{
-		// If both eyes are found and above the closed eye threshold, don't do anything.
-		case 0:
-			return EEyeStatus::BothOpen;
-		// If one eye cannot be found or is under the closed eye threshold, treat as a wink.
-		case 1:
-			return EEyeStatus::Wink;
-		// Else, treat as a blink.
-		default:
-			return EEyeStatus::Blink;
-	}*/
+	if (LeftEye.empty())
+		return EEyeStatus::WinkLeft;
+	if (RightEye.empty())
+		return EEyeStatus::WinkRight;
+
 	return EEyeStatus::BothOpen;
+}
+
+void FCascadeEyeDetector::UpdateEyeState(EEyeStatus FrameEyeStatus, const double& DeltaTime)
+{
+	// Keeps track of frame changes so we can figure out which events were likely errors.
+	switch (FrameEyeStatus)
+	{
+		case EEyeStatus::BothOpen:
+			TimeLeftEyeClosed = FMath::Clamp(TimeLeftEyeClosed - DeltaTime * OpenEyeTimeMultiplier, 0, SampleRate);
+			TimeRightEyeClosed = FMath::Clamp(TimeRightEyeClosed - DeltaTime * OpenEyeTimeMultiplier, 0, SampleRate);
+			break;
+		case EEyeStatus::WinkLeft:
+			TimeLeftEyeClosed = FMath::Clamp(TimeLeftEyeClosed + DeltaTime * WinkEyeTimeMultiplier, 0, SampleRate);
+		    TimeRightEyeClosed = FMath::Clamp(TimeRightEyeClosed - DeltaTime * OpenEyeTimeMultiplier, 0, SampleRate);
+			break;
+		case EEyeStatus::WinkRight:
+			TimeLeftEyeClosed = FMath::Clamp(TimeLeftEyeClosed - DeltaTime * OpenEyeTimeMultiplier, 0, SampleRate);
+			TimeRightEyeClosed = FMath::Clamp(TimeRightEyeClosed + DeltaTime * WinkEyeTimeMultiplier, 0, SampleRate);
+			break;
+		case EEyeStatus::Blink:
+			TimeLeftEyeClosed = FMath::Clamp(TimeLeftEyeClosed + DeltaTime * BlinkEyeTimeMultiplier, 0, SampleRate);
+			TimeRightEyeClosed = FMath::Clamp(TimeRightEyeClosed + DeltaTime * BlinkEyeTimeMultiplier, 0, SampleRate);
+			break;
+		case EEyeStatus::Error:
+			TimeLeftEyeClosed = FMath::Clamp(TimeLeftEyeClosed + DeltaTime * ErrorTimeMultiplier, 0, SampleRate);
+		    TimeRightEyeClosed = FMath::Clamp(TimeRightEyeClosed + DeltaTime * ErrorTimeMultiplier, 0, SampleRate);
+			break;
+	}
+}
+
+EEyeStatus FCascadeEyeDetector::GetEyeStatusWithError(EEyeStatus FrameEyeStatus) const
+{
+	const bool bLeftEyeOpen = TimeLeftEyeClosed / SampleRate < ClosedEyeThreshold;
+	const bool bRightEyeOpen = TimeRightEyeClosed / SampleRate < ClosedEyeThreshold;
+	
+	// Both eyes have been recently closed.
+	if (!bLeftEyeOpen && !bRightEyeOpen)
+		return EEyeStatus::Blink;
+	// Both eyes have been open for long or not closed long enough.
+	if (bLeftEyeOpen && bRightEyeOpen)
+		return EEyeStatus::BothOpen;
+	// Right eye has been closed for long but left not.
+	if (bLeftEyeOpen && !bRightEyeOpen)
+		return EEyeStatus::WinkRight;
+	// Left eye has been closed for long but right not. 
+	if (!bLeftEyeOpen && bRightEyeOpen)
+		return EEyeStatus::WinkLeft;
+	
+	return FrameEyeStatus;
 }

@@ -63,7 +63,7 @@ void UCameraReader::Activate(bool bReset)
 		}
 		else
 		{
-			VideoReader = new FVideoReader(
+			VideoReader = new FTestVideoReader(
 				VideoFileLocation,
 				VideoReaderTickRate,
 				bResize ? ResizeDimensions : FVector2D());

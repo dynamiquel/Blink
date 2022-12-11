@@ -1,5 +1,5 @@
 ﻿#include "TestVideoReader.h"
-#include "EyeDetector.h"
+#include "CascadeEyeDetector.h"
 
 FTestVideoReader::FTestVideoReader(int32 InCameraIndex, float InRefreshRate, FVector2D InResizeDimensions)
 	: FVideoReader(InCameraIndex, InRefreshRate, InResizeDimensions)
@@ -26,7 +26,7 @@ void FTestVideoReader::Start()
 	FVideoReader::Start();
 	
 	if (!EyeDetector)
-		EyeDetector = new FEyeDetector(this);
+		EyeDetector = new FCascadeEyeDetector(this);
 
 	AddChildRenderer(EyeDetector);
 }
