@@ -11,10 +11,9 @@ FTestVideoReader::FTestVideoReader(const FString& InVideoSource, float InRefresh
 
 void FTestVideoReader::Exit()
 {
-	if (EyeDetector)
+	if (EyeDetector.IsValid())
 	{
 		RemoveChildRenderer(EyeDetector);
-		delete EyeDetector;
 		EyeDetector = nullptr;
 	}
 	
@@ -25,8 +24,8 @@ void FTestVideoReader::Start()
 {
 	FVideoReader::Start();
 	
-	if (!EyeDetector)
-		EyeDetector = new FCascadeEyeDetector(this);
+	if (!EyeDetector.IsValid())
+		EyeDetector = MakeShared<FCascadeEyeDetector>(this);
 
 	AddChildRenderer(EyeDetector);
 }

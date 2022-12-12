@@ -49,7 +49,7 @@ private:
 	TSharedPtr<cv::Mat> CurrentFrame;
 	bool bVideoActive;
 	double PreviousTime;
-	TArray<FRenderable*> ChildRenderers;
+	TArray<TWeakPtr<FRenderable>> ChildRenderers;
 	
 public:
 	/**
@@ -78,9 +78,9 @@ protected:
 	 */
 	virtual void Start();
 
-	void AddChildRenderer(FRenderable* ChildRenderer);
-	void RemoveChildRenderer(FRenderable* ChildRenderer);
-	bool HasChildRenderer(FRenderable* ChildRenderer) const;
+	void AddChildRenderer(TWeakPtr<FRenderable> ChildRenderer);
+	void RemoveChildRenderer(TWeakPtr<FRenderable> ChildRenderer);
+	bool HasChildRenderer(TWeakPtr<FRenderable> ChildRenderer) const;
 
 private:
 	/**

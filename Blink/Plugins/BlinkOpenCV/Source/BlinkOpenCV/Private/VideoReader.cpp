@@ -129,16 +129,16 @@ void FVideoReader::Render()
 
 	// Render any child renderers.
 	for (const auto ChildRenderer : ChildRenderers)
-		if (ChildRenderer)
-			ChildRenderer->Render();
+		if (const auto LockedChildRenderer = ChildRenderer.Pin())
+			LockedChildRenderer->Render();
 }
 
 void FVideoReader::StopRendering()
 {
 	cv::destroyWindow(WindowName);
 	for (const auto ChildRenderer : ChildRenderers)
-		if (ChildRenderer)
-			ChildRenderer->StopRendering();
+		if (const auto LockedChildRenderer = ChildRenderer.Pin())
+			LockedChildRenderer->StopRendering();
 }
 
 FVideoReader::~FVideoReader()
@@ -176,17 +176,17 @@ void FVideoReader::Start()
 	bVideoActive = true;
 }
 
-void FVideoReader::AddChildRenderer(FRenderable* ChildRenderer)
+void FVideoReader::AddChildRenderer(TWeakPtr<FRenderable> ChildRenderer)
 {
 	ChildRenderers.AddUnique(ChildRenderer);
 }
 
-void FVideoReader::RemoveChildRenderer(FRenderable* ChildRenderer)
+void FVideoReader::RemoveChildRenderer(TWeakPtr<FRenderable> ChildRenderer)
 {
 	ChildRenderers.Remove(ChildRenderer);
 }
 
-bool FVideoReader::HasChildRenderer(FRenderable* ChildRenderer) const
+bool FVideoReader::HasChildRenderer(TWeakPtr<FRenderable> ChildRenderer) const
 {
 	return ChildRenderers.Contains(ChildRenderer);
 }
