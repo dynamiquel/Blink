@@ -11,13 +11,19 @@ FTestVideoReader::FTestVideoReader(const FString& InVideoSource, float InRefresh
 
 void FTestVideoReader::Exit()
 {
+	FVideoReader::Exit();
+}
+
+void FTestVideoReader::Stop()
+{
+	FVideoReader::Stop();
+	
 	if (EyeDetector.IsValid())
 	{
 		RemoveChildRenderer(EyeDetector);
+		EyeDetector->Kill();
 		EyeDetector = nullptr;
 	}
-	
-	FVideoReader::Exit();
 }
 
 void FTestVideoReader::Start()

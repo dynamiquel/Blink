@@ -17,4 +17,6 @@ private:
 protected:
 	virtual void Start() override;
 	virtual void Exit() override;
+
+	virtual void Stop() override;
 };

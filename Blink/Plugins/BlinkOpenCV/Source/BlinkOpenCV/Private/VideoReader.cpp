@@ -90,7 +90,7 @@ uint32 FVideoReader::Run()
 
 			// Setting after ensures any thread that wants access to the video frame, only gets FULLY processed frames
 			// from the CameraReader. Otherwise, it is possible for other threads to get partially processed frames.
-			TmpFrame.copyTo(*CurrentFrame);
+			CurrentFrame = MakeShared<cv::Mat>(TmpFrame.clone());
 		}
 
 		// Sleep until next refresh. Ensure minimum sleep time so it doesn't waste the OS resources.
@@ -111,6 +111,8 @@ void FVideoReader::Exit()
 		bVideoActive = false;
 		VideoStream.release();
 	}
+	
+	CurrentFrame.Reset();
 }
 
 void FVideoReader::Stop()
@@ -123,14 +125,17 @@ void FVideoReader::Stop()
 
 void FVideoReader::Render()
 {
-	const auto Frame = GetFrame();
-	if (Frame.data != nullptr)
-		cv::imshow(WindowName, Frame);
+	if (IsActive())
+	{
+		const auto Frame = GetFrame();
+		if (Frame.IsValid() && Frame->data != nullptr)
+			cv::imshow(WindowName, *Frame);
 
-	// Render any child renderers.
-	for (const auto ChildRenderer : ChildRenderers)
-		if (const auto LockedChildRenderer = ChildRenderer.Pin())
-			LockedChildRenderer->Render();
+		// Render any child renderers.
+		for (const auto ChildRenderer : ChildRenderers)
+			if (const auto LockedChildRenderer = ChildRenderer.Pin())
+				LockedChildRenderer->Render();
+	}
 }
 
 void FVideoReader::StopRendering()
@@ -149,9 +154,8 @@ FVideoReader::~FVideoReader()
 	{
 		Thread->Kill();
 		delete Thread;
+		Thread = nullptr;
 	}
-
-	CurrentFrame.Reset();
 }
 
 void FVideoReader::ProcessNextFrame(cv::Mat& Frame)

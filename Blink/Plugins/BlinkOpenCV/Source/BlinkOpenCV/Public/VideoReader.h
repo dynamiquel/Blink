@@ -55,12 +55,7 @@ public:
 	/**
 	 * @brief Gets the current fully-processed frame.
 	 */
-	cv::Mat GetFrame() const
-	{
-		if (CurrentFrame.IsValid() && CurrentFrame->data)
-			return CurrentFrame->clone();
-		return cv::Mat();
-	}
+	TSharedPtr<cv::Mat> GetFrame() const { return CurrentFrame; }
 
 	FORCEINLINE bool IsActive() const { return bThreadActive; }
 

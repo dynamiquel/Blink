@@ -34,6 +34,8 @@ FCascadeEyeDetector::FCascadeEyeDetector(FVideoReader* InVideoReader)
 	checkf(FileManager.FileExists(*CascadeFilePath), TEXT("The OpenCV Eye cascade filter does not exist"));
 
 	EyeClassifier = cv::makePtr<cv::CascadeClassifier>(TCHAR_TO_UTF8(*CascadeFilePath));
+
+	CreateThread();
 }
 
 uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime)

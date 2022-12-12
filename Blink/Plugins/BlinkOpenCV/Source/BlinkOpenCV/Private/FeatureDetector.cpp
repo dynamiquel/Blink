@@ -1,7 +1,12 @@
 ﻿#include "FeatureDetector.h"
 #include "BlinkOpenCV.h"
-#include "CameraReader.h"
 #include "VideoReader.h"
+
+void FFeatureDetector::CreateThread()
+{
+	Thread = FRunnableThread::Create(this, ThreadName, 0, TPri_AboveNormal);
+	checkf(Thread, TEXT("Could not create Thread '%s'"), ThreadName);
+}
 
 FFeatureDetector::FFeatureDetector(FVideoReader* InVideoReader)
 {
@@ -10,9 +15,6 @@ FFeatureDetector::FFeatureDetector(FVideoReader* InVideoReader)
 	checkf(InVideoReader, TEXT("FeatureDetector is missing a valid VideoReader"));
 	VideoReader = InVideoReader;
 	CurrentFrame = MakeShared<cv::Mat>();
-	
-	Thread = FRunnableThread::Create(this, ThreadName, 0, TPri_AboveNormal);
-	checkf(Thread, TEXT("Could not create Thread '%s'"), ThreadName);
 }
 
 bool FFeatureDetector::Init()
@@ -52,7 +54,7 @@ uint32 FFeatureDetector::Run()
 				TEXT("Thread '%s' processed a frame (%fms)."), ThreadName, SecondsTook * 1000.f);
 			#endif
 
-			NextFrame.copyTo(*CurrentFrame);
+			CurrentFrame = MakeShared<cv::Mat>(NextFrame.clone());
 		}
 
 		// Sleep until next refresh. Ensure minimum sleep time so it doesn't waste the OS resources.
@@ -70,6 +72,7 @@ void FFeatureDetector::Exit()
 	// Executed on worker thread.
 	
 	UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is exiting."), ThreadName);
+	CurrentFrame.Reset();
 }
 
 void FFeatureDetector::Stop()
@@ -82,9 +85,12 @@ void FFeatureDetector::Stop()
 
 void FFeatureDetector::Render()
 {
-	const auto Frame = GetCurrentFrame();
-	if (Frame && Frame->data != nullptr)
-		cv::imshow(TCHAR_TO_UTF8(ThreadName), Frame->clone());
+	if (IsActive())
+	{
+		const auto Frame = GetCurrentFrame();
+		if (Frame.IsValid() && Frame->data != nullptr)
+			cv::imshow(TCHAR_TO_UTF8(ThreadName), *Frame);
+	}
 }
 
 void FFeatureDetector::StopRendering()
@@ -94,21 +100,30 @@ void FFeatureDetector::StopRendering()
 
 FFeatureDetector::~FFeatureDetector()
 {
+	Kill();
+}
+
+void FFeatureDetector::Kill()
+{
 	// Executed on game thread.
 	
 	if (Thread)
 	{
 		Thread->Kill();
 		delete Thread;
+		Thread = nullptr;
 	}
-
-	CurrentFrame.Reset();
 }
 
 cv::Mat FFeatureDetector::GetNextFrame() const
 {
 	// Executed on worker thread.
-	return VideoReader->GetFrame();
+	
+	// Create a copy of the frame if it exists.
+	if (const TSharedPtr<cv::Mat> Frame = VideoReader->GetFrame(); Frame.IsValid())
+		return Frame->clone();
+	
+	return cv::Mat();
 }
 
 uint32 FFeatureDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime)

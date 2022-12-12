@@ -32,6 +32,8 @@ public:
 	virtual void StopRendering() override;
 	virtual ~FFeatureDetector() override;
 
+	void Kill();
+
 protected:
 	const TCHAR* ThreadName = TEXT("UnnamedFeatureDetectorThread");
 	TSharedPtr<cv::Mat> CurrentFrame;
@@ -43,7 +45,6 @@ private:
 
 	FVideoReader* VideoReader = nullptr;
 	double PreviousTime = 0;
-	double ST_TimeUntilRefresh = 0;
 
 public:
 	FORCEINLINE bool IsActive() const { return bActive; }
@@ -51,6 +52,7 @@ public:
 
 protected:
 	virtual uint32 ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime);
+	void CreateThread();
 
 private:
 	cv::Mat GetNextFrame() const;
