@@ -1,5 +1,4 @@
 ﻿#include "CascadeEyeDetector.h"
-
 #include "PreOpenCVHeaders.h"
 #include "opencv2/imgproc.hpp"
 #include "opencv2/core/cuda.hpp"
@@ -9,14 +8,13 @@
 #include <opencv2/cudaobjdetect.hpp>
 #include <opencv2/cudawarping.hpp>
 #include <opencv2/cudafeatures2d.hpp>
-
-#include "BlinkOpenCV.h"
 #include "PostOpenCVHeaders.h"
+#include "BlinkOpenCV.h"
 
 FCascadeEyeDetector::FCascadeEyeDetector(FVideoReader* InVideoReader)
-	: FFeatureDetector(InVideoReader)
+	: FEyeDetector(InVideoReader)
 {
-	ThreadName = TEXT("EyeDetectorThread");
+	ThreadName = TEXT("CascadeEyeDetectorThread");
 	
 	FString CascadeDirectory =
     FPaths::Combine(FPaths::ProjectPluginsDir(), TEXT("BlinkOpenCV"), TEXT("Content"), TEXT("Cascades"));
@@ -52,6 +50,20 @@ uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& Delta
 	
 	// Do additional processing to determine the actual eye status by taking errors into account.
 	const EEyeStatus ErroredEyeStatus = GetEyeStatusWithError(FrameEyeStatus);
+
+	const double CurrentTime = FPlatformTime::Seconds();
+	switch (ErroredEyeStatus)
+	{
+		case EEyeStatus::WinkLeft:
+			SetLastLeftWinkTime(CurrentTime);
+			break;
+		case EEyeStatus::WinkRight:
+			SetLastRightWinkTime(CurrentTime);
+			break;
+		case EEyeStatus::Blink:
+			SetLastBlinkTime(CurrentTime);
+			break;
+	}
 
 	UE_LOG(LogBlinkOpenCV, Warning, TEXT("State: %s"), *UEnum::GetValueAsString(FrameEyeStatus));
 	UE_LOG(LogBlinkOpenCV, Error, TEXT("State: %s"), *UEnum::GetValueAsString(ErroredEyeStatus));

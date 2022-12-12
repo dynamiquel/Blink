@@ -1,17 +1,7 @@
 ﻿#pragma once
-#include "FeatureDetector.h"
+#include "EyeDetector.h"
 
-UENUM()
-enum class EEyeStatus : uint8
-{
-	BothOpen,
-	WinkLeft,
-	WinkRight,
-	Blink,
-	Error
-};
-
-class BLINKOPENCV_API FCascadeEyeDetector : public FFeatureDetector
+class BLINKOPENCV_API FCascadeEyeDetector : public FEyeDetector
 {
 public:
 	FCascadeEyeDetector(FVideoReader* InVideoReader);
