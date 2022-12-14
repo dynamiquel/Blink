@@ -1,6 +1,12 @@
 ﻿#pragma once
 #include "EyeDetector.h"
 
+/**
+ * @brief My first implementation of an eye detector using Haar cascades.
+ * It is highly inaccurate as it leads to many false positives and few false negatives.
+ * A lot of tolerance features have been implemented to increase accuracy at the cost of latency but it remains
+ * insufficient, especially for winks.
+ */
 class BLINKOPENCV_API FCascadeEyeDetector : public FEyeDetector
 {
 public:

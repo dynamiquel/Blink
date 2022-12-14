@@ -47,8 +47,6 @@ void ABlinkGameMode::PlayerDied()
 	
 	UKismetSystemLibrary::PrintString(this,
 		FString::Printf(TEXT("Player Died (%d times)"), GetGameState<ABlinkGameState>()->Deaths));
-
-	ResetLevel();
 }
 
 void ABlinkGameMode::PlayerBlinked()
