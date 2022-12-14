@@ -27,15 +27,22 @@ FCascadeEyeDetector::FCascadeEyeDetector(FVideoReader* InVideoReader)
 	checkf(FileManager.FileExists(*CascadeFilePath), TEXT("The OpenCV Face cascade filter does not exist"));
 		
 	//FaceClassifier = cv::cuda::CascadeClassifier::create(TCHAR_TO_UTF8(*CascadeFilePath));
-	FaceClassifier = cv::makePtr<cv::CascadeClassifier>(TCHAR_TO_UTF8(*CascadeFilePath));
+	FaceClassifier = MakeShared<cv::CascadeClassifier>(TCHAR_TO_UTF8(*CascadeFilePath));
 	
 	// Load the Eye cascade filter.
 	CascadeFilePath = FPaths::Combine(CascadeDirectory, TEXT("haarcascade_eye.xml"));
 	checkf(FileManager.FileExists(*CascadeFilePath), TEXT("The OpenCV Eye cascade filter does not exist"));
 
-	EyeClassifier = cv::makePtr<cv::CascadeClassifier>(TCHAR_TO_UTF8(*CascadeFilePath));
+	EyeClassifier = MakeShared<cv::CascadeClassifier>(TCHAR_TO_UTF8(*CascadeFilePath));
 
 	CreateThread();
+}
+
+void FCascadeEyeDetector::Exit()
+{
+	FEyeDetector::Exit();
+	EyeClassifier.Reset();
+	FaceClassifier.Reset();
 }
 
 uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime)
@@ -53,6 +60,7 @@ uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& Delta
 	// Do additional processing to determine the actual eye status by taking errors into account.
 	const EEyeStatus ErroredEyeStatus = GetEyeStatusWithError(FrameEyeStatus);
 
+	// Record the last eye(s) closed time so it can be used by external objects.
 	const double CurrentTime = FPlatformTime::Seconds();
 	switch (ErroredEyeStatus)
 	{

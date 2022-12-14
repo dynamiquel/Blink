@@ -5,6 +5,7 @@ class BLINKOPENCV_API FCascadeEyeDetector : public FEyeDetector
 {
 public:
 	FCascadeEyeDetector(FVideoReader* InVideoReader);
+	virtual void Exit() override;
 	
 protected:
 	virtual uint32 ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime) override;
@@ -37,8 +38,8 @@ protected:
 	float BlinkEyeTimeMultiplier = 3.5f; // Should be strong enough for two blinks to be registered.
 	float ErrorTimeMultiplier = 2.5f;
 	
-	cv::Ptr<cv::CascadeClassifier> FaceClassifier;
-	cv::Ptr<cv::CascadeClassifier> EyeClassifier;
+	TSharedPtr<cv::CascadeClassifier> FaceClassifier;
+	TSharedPtr<cv::CascadeClassifier> EyeClassifier;
 
 	// State vars to take error into consideration.
 	float TimeLeftEyeClosed = 0;

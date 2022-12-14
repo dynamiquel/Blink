@@ -66,6 +66,7 @@ uint32 FVideoReader::Run()
 		else
 		{
 			// Attempt to read the current frame in the VideoStream.
+			// Note: It takes a few seconds for the Video Stream to return an empty frame.
 			cv::Mat TmpFrame;
 			if (VideoStream.read(OUT TmpFrame))
 			{
@@ -82,15 +83,17 @@ uint32 FVideoReader::Run()
 				UE_LOG(LogBlinkOpenCV, Display,
 					TEXT("VideoReader: Processed a frame in %fms"), SecondsTook * 1000.f);
 				#endif
+
+				// Setting after ensures any thread that wants access to the video frame, only gets FULLY processed frames
+				// from the CameraReader. Otherwise, it is possible for other threads to get partially processed frames.
+				CurrentFrame = MakeShared<cv::Mat>(TmpFrame);
 			}
 			else
 			{
 				UE_LOG(LogBlinkOpenCV, Error, TEXT("VideoReader: VideoStream could not be read"));
+				bVideoActive = false;
+				CurrentFrame.Reset();
 			}
-
-			// Setting after ensures any thread that wants access to the video frame, only gets FULLY processed frames
-			// from the CameraReader. Otherwise, it is possible for other threads to get partially processed frames.
-			CurrentFrame = MakeShared<cv::Mat>(TmpFrame.clone());
 		}
 
 		// Sleep until next refresh. Ensure minimum sleep time so it doesn't waste the OS resources.

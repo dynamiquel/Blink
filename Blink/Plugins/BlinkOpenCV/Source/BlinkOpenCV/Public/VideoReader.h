@@ -57,7 +57,15 @@ public:
 	 */
 	TSharedPtr<cv::Mat> GetFrame() const { return CurrentFrame; }
 
+	/**
+	 * @brief Is the thread currently running?
+	 */
 	FORCEINLINE bool IsActive() const { return bThreadActive; }
+
+	/**
+	 * @brief Is the video stream currently active?
+	 */
+	bool IsVideoActive() const { return bVideoActive; }
 
 protected:
 	/**

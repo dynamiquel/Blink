@@ -75,8 +75,32 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Camera", meta = (EditCondition="bShowInSeparateWindow", EditConditionHides))
 	FString WindowName;
 
+	/**
+	 * @brief The tick rate of the VideoReader thread.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Eyes", meta = (ClampMin=0.f, ClampMax=1.f))
+	float EyeSampleRate;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Eyes", meta = (ClampMin=0.f, ClampMax=1.f))
+	double BlinkResetTime;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Eyes", meta = (ClampMin=0.f, ClampMax=1.f))
+	double WinkResetTime;
+
+	double PreviousBlinkTime;
+	double PreviousLeftWinkTime;
+	double PreviousRightWinkTime;
+
+	int32 BlinkCount;
+	int32 LeftWinkCount;
+	int32 RightWinkCount;
+
+	bool bVideoActive;
+
 protected:
 	FVideoReader* VideoReader;
+
+	FTimerHandle EyeSampleTimer;
 
 public:
 	// Overriden so the VideoStream can be stopped and released upon Destroy. 
@@ -92,4 +116,20 @@ public:
 
 protected:
 	void Stop();
+
+	UFUNCTION()
+	void OnEyeSampleTick();
+
+	UFUNCTION(BlueprintNativeEvent)
+	void OnBlink();
+
+	UFUNCTION(BlueprintNativeEvent)
+	void OnLeftEyeWink();
+
+	UFUNCTION(BlueprintNativeEvent)
+	void OnRightEyeWink();
+
+	void OnCameraLost();
+
+	void OnCameraFound();
 };

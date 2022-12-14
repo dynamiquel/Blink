@@ -1,7 +1,10 @@
 ﻿#include "CameraReader.h"
 #include "BlinkOpenCV.h"
+#include "EyeDetector.h"
 #include "TestVideoReader.h"
 #include "VideoReader.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "opencv2/unreal.hpp"
 
 UCameraReader::UCameraReader()
 {
@@ -17,6 +20,9 @@ UCameraReader::UCameraReader()
 	WindowName = TEXT("Camera");
 	VideoReader = nullptr;
 	VideoReaderTickRate = 1.f / 30.f;
+	EyeSampleRate = 1.f / 30.f;
+	BlinkResetTime = 3;
+	WinkResetTime = 2;
 }
 
 void UCameraReader::BeginPlay()
@@ -30,9 +36,18 @@ void UCameraReader::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	if (VideoReader)
+	{
+		// Video active status has changed.
+		if (VideoReader->IsVideoActive() != bVideoActive)
+		{
+			bVideoActive = !bVideoActive;
+			bVideoActive ? OnCameraFound() : OnCameraLost();
+		}
+	}
+
 	#if UE_BUILD_DEBUG || UE_EDITOR
 	// Debugging purposes. Uses the tick rate of the component as the refresh rate for the video stream output.
-
 	// Window rendering can only be done from the game thread, hence why it is being done here.
 	if (bShowInSeparateWindow && VideoReader)
 		VideoReader->Render();
@@ -68,6 +83,13 @@ void UCameraReader::Activate(bool bReset)
 				VideoReaderTickRate,
 				bResize ? ResizeDimensions : FVector2D());
 		}
+		
+		GetWorld()->GetTimerManager().SetTimer(
+			EyeSampleTimer,
+			this,
+			&UCameraReader::OnEyeSampleTick,
+			EyeSampleRate,
+			true);
 	}
 }
 
@@ -90,6 +112,10 @@ void UCameraReader::PrintOpenCVBuildInfo()
 
 void UCameraReader::Stop()
 {
+	// It's possible for world not to exist, such as game being stopped.
+	if (GetWorld())
+		GetWorld()->GetTimerManager().ClearTimer(EyeSampleTimer);
+	
 	if (VideoReader)
 	{
 		if (bShowInSeparateWindow)
@@ -98,4 +124,122 @@ void UCameraReader::Stop()
 		delete VideoReader;
 		VideoReader = nullptr;
 	}
+}
+
+void UCameraReader::OnEyeSampleTick()
+{
+	if (VideoReader && VideoReader->IsVideoActive())
+	{
+		// Ensure correct Video Reader type.
+		if (const FTestVideoReader* Casted = static_cast<FTestVideoReader*>(VideoReader))
+		{
+			// Safely retrieve the eye detector.
+			if (const auto EyeDetector = Casted->GetEyeDetector().Pin())
+			{
+				const double CurrentTime = FPlatformTime::Seconds();
+
+				double LastBlinkTimeValue = 0;
+				if (const auto LastBlinkTime = EyeDetector->GetLastBlinkTime().Pin())
+					LastBlinkTimeValue = *LastBlinkTime;
+
+				if (CurrentTime > PreviousBlinkTime + BlinkResetTime /* different* blink */ && LastBlinkTimeValue > PreviousBlinkTime /* new blink */)
+				{
+					PreviousBlinkTime = CurrentTime;
+					OnBlink();
+				}
+
+				double LastLeftWinkTimeValue = 0;
+				if (const auto LastLeftWinkTime = EyeDetector->GetLastLeftWinkTime().Pin())
+					LastLeftWinkTimeValue = *LastLeftWinkTime;
+				
+				if (LastLeftWinkTimeValue > PreviousLeftWinkTime && CurrentTime > PreviousLeftWinkTime + WinkResetTime)
+				{
+					PreviousLeftWinkTime = CurrentTime;
+					OnLeftEyeWink();
+				}
+
+				double LastRightWinkTimeValue = 0;
+				if (const auto LastRightWinkTime = EyeDetector->GetLastRightWinkTime().Pin())
+					LastRightWinkTimeValue = *LastRightWinkTime;
+				
+				if (LastRightWinkTimeValue > PreviousRightWinkTime && CurrentTime > PreviousRightWinkTime + WinkResetTime)
+				{
+					PreviousRightWinkTime = CurrentTime;
+					OnRightEyeWink();
+				}
+			}
+		}
+	}
+}
+
+void UCameraReader::OnBlink_Implementation()
+{
+	BlinkCount++;
+	
+	UKismetSystemLibrary::PrintString(
+		this,
+		FString::Printf(TEXT("Blinks: %d"), BlinkCount),
+		true,
+		false,
+		FLinearColor(0, 1.f, .66f),
+		FLT_MAX,
+		FName(TEXT("BlinkNum")));
+
+	UKismetSystemLibrary::PrintString(this, TEXT("Blinked"), true, false);
+}
+
+void UCameraReader::OnLeftEyeWink_Implementation()
+{
+	LeftWinkCount++;
+	
+	UKismetSystemLibrary::PrintString(
+		this,
+		FString::Printf(TEXT("Left Winks: %d"), LeftWinkCount),
+		true,
+		false,
+		FLinearColor(1.f, .66, 0.f),
+		FLT_MAX,
+		FName(TEXT("LeftWinkNum")));
+
+	UKismetSystemLibrary::PrintString(this, TEXT("Left Winked"), true, false);
+}
+
+void UCameraReader::OnRightEyeWink_Implementation()
+{
+	RightWinkCount++;
+	
+	UKismetSystemLibrary::PrintString(
+		this,
+		FString::Printf(TEXT("Right Winks: %d"), RightWinkCount),
+		true,
+		false,
+		FLinearColor(.66f, 0, 1.f),
+		FLT_MAX,
+		FName(TEXT("RightinkNum")));
+
+	UKismetSystemLibrary::PrintString(this, TEXT("Right Winked"), true, false);
+}
+
+void UCameraReader::OnCameraLost()
+{
+	UKismetSystemLibrary::PrintString(
+		this,
+		TEXT("CAMERA CANNOT BE FOUND"),
+		true,
+		false,
+		FLinearColor(1.f, 0, 1.f),
+		FLT_MAX,
+		FName(TEXT("CameraLost")));
+}
+
+void UCameraReader::OnCameraFound()
+{
+	UKismetSystemLibrary::PrintString(
+		this,
+		TEXT("CAMERA FOUND"),
+		true,
+		false,
+		FLinearColor(0.f, 1.f, 0.f),
+		2.f,
+		FName(TEXT("CameraLost")));
 }

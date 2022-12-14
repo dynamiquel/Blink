@@ -16,14 +16,14 @@ class FEyeDetector : public FFeatureDetector
 public:
 	FEyeDetector(FVideoReader* InVideoReader);
 	
-	const TSharedPtr<double> GetLastBlinkTime() const { return LastBlinkTime; }
-	const TSharedPtr<double> GetLastLeftWinkTime() const { return LastLeftWinkTime; }
-	const TSharedPtr<double> GetLastRightWinkTime() const { return LastRightWinkTime; }
+	const TWeakPtr<double> GetLastBlinkTime() const { return LastBlinkTime; }
+	const TWeakPtr<double> GetLastLeftWinkTime() const { return LastLeftWinkTime; }
+	const TWeakPtr<double> GetLastRightWinkTime() const { return LastRightWinkTime; }
 
 protected:
-	void SetLastBlinkTime(double NewBlinkTime) const { *LastBlinkTime = NewBlinkTime; }
-	void SetLastLeftWinkTime(double NewLeftWinkTime) const { *LastLeftWinkTime = NewLeftWinkTime; }
-	void SetLastRightWinkTime(double NewRightWinkTime) const { *LastRightWinkTime = NewRightWinkTime; }
+	void SetLastBlinkTime(double NewBlinkTime) { *LastBlinkTime = NewBlinkTime; }
+	void SetLastLeftWinkTime(double NewLeftWinkTime) { *LastLeftWinkTime = NewLeftWinkTime; }
+	void SetLastRightWinkTime(double NewRightWinkTime) { *LastRightWinkTime = NewRightWinkTime; }
 
 private:
 	// Thread-safe pointers to last eye closed times.
