@@ -14,10 +14,10 @@ void UBlinkCameraReader::OnBlink_Implementation()
 
 void UBlinkCameraReader::OnLeftEyeWink_Implementation()
 {
-	Super::OnLeftEyeWink_Implementation();
+	//Super::OnLeftEyeWink_Implementation();
 }
 
 void UBlinkCameraReader::OnRightEyeWink_Implementation()
 {
-	Super::OnRightEyeWink_Implementation();
+	//Super::OnRightEyeWink_Implementation();
 }

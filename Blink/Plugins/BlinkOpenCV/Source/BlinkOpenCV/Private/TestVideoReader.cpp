@@ -1,6 +1,7 @@
 ﻿#include "TestVideoReader.h"
+
 #include "CascadeEyeDetector.h"
-#include "DnnEyeDetector.h"
+#include "DnnCascadeEyeDetector.h"
 
 FTestVideoReader::FTestVideoReader(int32 InCameraIndex, float InRefreshRate, FVector2D InResizeDimensions)
 	: FVideoReader(InCameraIndex, InRefreshRate, InResizeDimensions)
@@ -32,7 +33,7 @@ void FTestVideoReader::Start()
 	FVideoReader::Start();
 	
 	if (!EyeDetector.IsValid())
-		EyeDetector = MakeShared<FDnnEyeDetector>(this);
+		EyeDetector = MakeShared<FCascadeEyeDetector>(this);
 
 	AddChildRenderer(EyeDetector);
 }

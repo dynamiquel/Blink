@@ -6,12 +6,13 @@
  * It is highly inaccurate as it leads to many false positives and few false negatives.
  * A lot of tolerance features have been implemented to increase accuracy at the cost of latency but it remains
  * insufficient, especially for winks.
+ * It is surprisingly very accurate with low light.
  */
 class BLINKOPENCV_API FCascadeEyeDetector : public FEyeDetector
 {
 public:
 	FCascadeEyeDetector(FVideoReader* InVideoReader);
-	virtual void Exit() override;
+	virtual ~FCascadeEyeDetector() override;
 	
 protected:
 	virtual uint32 ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime) override;
@@ -30,9 +31,12 @@ protected:
 	void DrawPreFilteredEyes(const cv::Mat& Frame, const cv::Rect& EyeArea, const std::vector<cv::Rect>& Eyes) const;
 	void DrawEye(const cv::Mat& Frame, const cv::Rect& EyeArea, const cv::Rect& Eye) const;
 
-	EEyeStatus GetEyeStatusFromFrame(const cv::Mat& Frame) const;
+	virtual EEyeStatus GetEyeStatusFromFrame(const cv::Mat& Frame) const override;
 	void UpdateEyeState(EEyeStatus FrameEyeStatus, const double& DeltaTime);
 	EEyeStatus GetEyeStatusWithError(EEyeStatus FrameEyeStatus) const;
+
+	TWeakPtr<cv::CascadeClassifier> GetFaceClassifier() const { return FaceClassifier; }
+	TWeakPtr<cv::CascadeClassifier> GetEyeClassifier() const { return EyeClassifier; }
 	
 protected:
 	int MinFaceSize = 200;

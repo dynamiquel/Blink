@@ -25,6 +25,9 @@ protected:
 	void SetLastLeftWinkTime(double NewLeftWinkTime) { *LastLeftWinkTime = NewLeftWinkTime; }
 	void SetLastRightWinkTime(double NewRightWinkTime) { *LastRightWinkTime = NewRightWinkTime; }
 
+protected:
+	virtual EEyeStatus GetEyeStatusFromFrame(const cv::Mat& Frame) const = 0;
+
 private:
 	// Thread-safe pointers to last eye closed times.
 	TSharedPtr<double> LastBlinkTime;

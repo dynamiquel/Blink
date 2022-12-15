@@ -1,7 +1,5 @@
 ﻿#include "DnnEyeDetector.h"
 
-#include "opencv2/dnn/dnn.hpp"
-
 FDnnEyeDetector::FDnnEyeDetector(FVideoReader* VideoReader) : FEyeDetector(VideoReader)
 {
 	ThreadName = TEXT("DnnEyeDetectorThread");

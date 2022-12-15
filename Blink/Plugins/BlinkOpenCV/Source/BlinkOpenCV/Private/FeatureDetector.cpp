@@ -72,7 +72,6 @@ void FFeatureDetector::Exit()
 	// Executed on worker thread.
 	
 	UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is exiting."), ThreadName);
-	CurrentFrame.Reset();
 }
 
 void FFeatureDetector::Stop()
@@ -101,6 +100,7 @@ void FFeatureDetector::StopRendering()
 FFeatureDetector::~FFeatureDetector()
 {
 	Kill();
+	CurrentFrame.Reset();
 }
 
 void FFeatureDetector::Kill()

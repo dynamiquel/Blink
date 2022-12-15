@@ -38,9 +38,8 @@ FCascadeEyeDetector::FCascadeEyeDetector(FVideoReader* InVideoReader)
 	CreateThread();
 }
 
-void FCascadeEyeDetector::Exit()
+FCascadeEyeDetector::~FCascadeEyeDetector()
 {
-	FEyeDetector::Exit();
 	EyeClassifier.Reset();
 	FaceClassifier.Reset();
 }
@@ -82,13 +81,14 @@ uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& Delta
 
 cv::Rect FCascadeEyeDetector::GetFace(const cv::Mat& Frame) const
 {
-	checkf(FaceClassifier, TEXT("The OpenCV Face cascade filter is null."));
-
 	// Finds potential faces from frame.
 	std::vector<cv::Rect> Faces;
-	FaceClassifier->detectMultiScale(Frame, OUT Faces, 1.3f, 5,
-		cv::CASCADE_FIND_BIGGEST_OBJECT,
-		cv::Size(MinFaceSize, MinFaceSize));
+	if (const auto FaceClass = GetFaceClassifier().Pin(); FaceClass.IsValid())
+	{
+		FaceClassifier->detectMultiScale(Frame, OUT Faces, 1.3f, 5,
+			cv::CASCADE_FIND_BIGGEST_OBJECT,
+			cv::Size(MinFaceSize, MinFaceSize));
+	}
 
 	DrawPreFilteredFaces(Frame, Faces);
 
@@ -129,8 +129,6 @@ void FCascadeEyeDetector::FilterFaces(const cv::Mat& Frame, std::vector<cv::Rect
 
 void FCascadeEyeDetector::GetEyes(const cv::Mat& Frame, const cv::Rect& Face, cv::Rect& LeftEye, cv::Rect& RightEye) const
 {
-	checkf(EyeClassifier, TEXT("The OpenCV Eye cascade filter is null."));
-
 	// Trim the Face rectangle to a small part where the eyes are typically located.
 	// Saves processing time and reduces false positives.
 	cv::Rect LeftEyeArea, RightEyeArea;
@@ -139,28 +137,32 @@ void FCascadeEyeDetector::GetEyes(const cv::Mat& Frame, const cv::Rect& Face, cv
 	DrawEyeArea(Frame, LeftEyeArea);
 	DrawEyeArea(Frame, RightEyeArea);
 
-	// Search for eyes in the calculated Left Eye Area.
-	auto FaceRoi = Frame(LeftEyeArea);
 	std::vector<cv::Rect> LeftEyes;
-	EyeClassifier->detectMultiScale(
-		FaceRoi,
-		OUT LeftEyes,
-		1.3,
-		2,
-		cv::CASCADE_SCALE_IMAGE,
-		cv::Size(MinEyeSize, MinEyeSize));
-
-	// Search for eyes in the calculated Right Eye Area.
-	FaceRoi = Frame(RightEyeArea);
 	std::vector<cv::Rect> RightEyes;
-	EyeClassifier->detectMultiScale(
-		FaceRoi,
-		OUT RightEyes,
-		1.3,
-		2,
-		cv::CASCADE_SCALE_IMAGE,
-		cv::Size(MinEyeSize, MinEyeSize));
 
+	if (const auto EyeClass = GetEyeClassifier().Pin(); EyeClass.IsValid())
+	{
+		// Search for eyes in the calculated Left Eye Area.
+		auto FaceRoi = Frame(LeftEyeArea);
+		EyeClassifier->detectMultiScale(
+			FaceRoi,
+			OUT LeftEyes,
+			1.3,
+			2,
+			cv::CASCADE_SCALE_IMAGE,
+			cv::Size(MinEyeSize, MinEyeSize));
+
+		// Search for eyes in the calculated Right Eye Area.
+		FaceRoi = Frame(RightEyeArea);
+		EyeClassifier->detectMultiScale(
+			FaceRoi,
+			OUT RightEyes,
+			1.3,
+			2,
+			cv::CASCADE_SCALE_IMAGE,
+			cv::Size(MinEyeSize, MinEyeSize));
+	}
+	
 	DrawPreFilteredEyes(Frame, LeftEyeArea, LeftEyes);
 	DrawPreFilteredEyes(Frame, RightEyeArea, RightEyes);
 
