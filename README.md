@@ -33,7 +33,7 @@ All the other game stuff, such as input, movement, player controller, assets, et
 The project uses Nvidia technology to get the most performance and so a Nvidia GPU is required to play this game.
 1. OpenCV 4.5.5 with various additional modules (pre-installed with the forked OpenCV plugin)
 2. Nvidia CUDA Runtime (pre-installed with Nvidia drivers)
-3. GStreamer (currently an external dependency using the complete Windows binary installer)
+3. GStreamer (currently an external dependency using the complete Windows binary installer, found [here](https://gstreamer.freedesktop.org/data/pkg/windows/1.20.4/msvc/gstreamer-1.0-msvc-x86_64-1.20.4.msi))
 
 I have not tested whether this project falls back to CPU processing when Nvidia CUDA cannot be used.
 
