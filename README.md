@@ -20,7 +20,9 @@ It contains the necessary logic to get the OpenCV libraries running in the engin
 This is my own plugin, which contains all the OpenCV-related logic, such as opening the camera, reading the camera, face detection, etc. 
 It uses multithreading by using Unreal's FRunnables and hardware acceleration using Nvidia CUDA.
 
-Since this Plugin uses base classes, such as `FVideoReader` and `FFeatureDetector`, it should be relativley easy to expand this plugin to suit your own Unreal game needs.
+Since this Plugin uses base classes, such as `FVideoReader` and `FFeatureDetector`, it should be relatively easy to expand this plugin to suit your own Unreal game needs.
+
+`FCascadeEyeDetector` is the class which was featured in the tech demo and offers the best eye detection. See `FDnnCascadeEyeDetector` for an alternative implementation using deep neural networks.
 
 ### 3. Game
 **Dir: /Source and /Content**
@@ -31,6 +33,30 @@ All the other game stuff, such as input, movement, player controller, assets, et
 The project uses Nvidia technology to get the most performance and so a Nvidia GPU is required to play this game.
 1. OpenCV 4.5.5 with various additional modules (pre-installed with the forked OpenCV plugin)
 2. Nvidia CUDA Runtime (pre-installed with Nvidia drivers)
-3. GStreamer (currently an external dependency using the default packaged build settings)
+3. GStreamer (currently an external dependency using the complete Windows binary installer)
 
 I have not tested whether this project falls back to CPU processing when Nvidia CUDA cannot be used.
+
+## Testing
+All testing was done with the provided **positive_test.mp4**, **negative_test.mp4**, **positive_light_test.mp4** and **negative_light_test.mp4** test files.
+
+### Blink detector
+|Metric	|Expected result	|Actual result	|
+|---	|---	|---	|
+|Accuracy (dark / light)   	|90%  	|100% / 37.5%   	|
+|Latency (from camera to game)   	|200ms   	|11ms   	|
+|False positives (dark / light)  	|1 every 60 seconds   	|0 / 4 every 15 seconds   	|
+
+### Wink detector
+|Metric	|Expected result	|Actual result	|
+|---	|---	|---	|
+|Accuracy (dark / light)   	|90%  	|N/A   	|
+|Latency (from camera to game)   	|200ms   	|11ms   	|
+|False positives (dark / light)  	|1 every 60 seconds   	|0 / 4 every 15 seconds   	|
+
+### Other game feature tests
+|Metric	|Expected result	|Actual result	|
+|---	|---	|---	|
+|Frames-per-second   	|60  	|73 - performance cost of camera features (including two video feed windows) is 2 FPS   	|
+|Enemies   	|Should move towards the player and attempt to kill   	|Enemies are stationary targets which get smaller overtime   	|
+|Player character and gun  	|The player character and gun should be working completely and responsive.    	|The player character and gun is working completely and responsive.   	|
