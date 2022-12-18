@@ -8,6 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "UObject/ConstructorHelpers.h"
+#include "CameraReader.h"
 
 ABlinkGameMode::ABlinkGameMode()
 	: Super()
@@ -43,6 +44,9 @@ void ABlinkGameMode::EnemyKilled(int32 EnemyValue)
 
 void ABlinkGameMode::PlayerDied()
 {
+	if (GetGameState<ABlinkGameState>()->bDeathDisabled)
+		return;
+	
 	GetGameState<ABlinkGameState>()->Deaths++;
 	
 	UKismetSystemLibrary::PrintString(this,
@@ -70,6 +74,43 @@ void ABlinkGameMode::PlayerBlinked()
 	// Player has blinked too many times.
 	if (Blinks >= BlinksAllowed)
 		PlayerDied();
+}
+
+void ABlinkGameMode::PlayerWinked(const UCameraReader* CameraReader, bool bRightEye)
+{
+	// Player has winked in a different eye, classify as a blink if the option is enabled.
+	if (bTreatDifferentWinksAsBlink)
+	{
+		if (bRightEye && CameraReader->LeftWinkCount > 0)
+		{
+			PlayerBlinked();
+			return;
+		}
+		if (!bRightEye && CameraReader->RightWinkCount > 0)
+		{
+			PlayerBlinked();
+			return;
+		}
+	}
+
+	if (auto PlayerChar = Cast<ABlinkCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)); IsValid(PlayerChar))
+	{
+		//GetGameState<ABlinkGameState>()->bPreparingEyeStrike = true;
+		PlayerChar->OnActivateEyeStrike();
+	}
+}
+
+void ABlinkGameMode::PlayerBothEyesOpen(const UCameraReader* CameraReader)
+{
+	if (GetGameState<ABlinkGameState>()->bPreparingEyeStrike)
+	{
+		if (auto PlayerChar = Cast<ABlinkCharacter>(UGameplayStatics::GetPlayerPawn(this, 0)); IsValid(PlayerChar))
+		{
+			//PlayerChar->OnActivateEyeStrike();
+		}
+
+		GetGameState<ABlinkGameState>()->bPreparingEyeStrike = false;
+	}
 }
 
 void ABlinkGameMode::PlayerFound()
@@ -124,6 +165,11 @@ void ABlinkGameMode::GunFired() const
 {
 	// Costs 1 score to fire a bullet.
 	GetGameState<ABlinkGameState>()->SetScore(GetGameState<ABlinkGameState>()->GetScore() - BulletCost);
+}
+
+void ABlinkGameMode::DisableDeath(bool bDisable)
+{
+	GetGameState<ABlinkGameState>()->bDeathDisabled = bDisable;
 }
 
 void ABlinkGameMode::SpawnNextEnemy()

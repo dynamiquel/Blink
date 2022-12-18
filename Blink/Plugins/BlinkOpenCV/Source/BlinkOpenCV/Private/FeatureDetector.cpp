@@ -35,20 +35,20 @@ uint32 FFeatureDetector::Run()
 	while (IsActive())
 	{
 		const double DeltaTime = UpdateAndGetDeltaTime();
-		#if UE_BUILD_DEBUG || UE_EDITOR
+		#if UE_BUILD_DEVELOPMENT || UE_EDITOR
 		UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is ticking."), ThreadName);
 		#endif
 
 		if (auto NextFrame = GetNextFrame(); !NextFrame.empty())
 		{
-			#if UE_BUILD_DEBUG || UE_EDITOR
+			#if UE_BUILD_DEVELOPMENT || UE_EDITOR
 			const double CurrentTime = FPlatformTime::Seconds();
 			UE_LOG(LogBlinkOpenCV, Display, TEXT("Thread '%s' is processing a frame."), ThreadName);
 			#endif
 			
 			ProcessNextFrame(NextFrame, DeltaTime);
 
-			#if UE_BUILD_DEBUG || UE_EDITOR
+			#if UE_BUILD_DEVELOPMENT || UE_EDITOR
 			const double SecondsTook = FPlatformTime::Seconds() - CurrentTime;
 			UE_LOG(LogBlinkOpenCV, Display,
 				TEXT("Thread '%s' processed a frame (%fms)."), ThreadName, SecondsTook * 1000.f);
@@ -87,7 +87,7 @@ void FFeatureDetector::Render()
 	if (IsActive())
 	{
 		const auto Frame = GetCurrentFrame();
-		if (Frame.IsValid() && Frame->data != nullptr)
+		if (Frame.IsValid() && Frame->data != nullptr && Frame->rows > 0)
 			cv::imshow(TCHAR_TO_UTF8(ThreadName), *Frame);
 	}
 }

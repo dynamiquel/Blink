@@ -31,6 +31,9 @@ protected:
 	UPROPERTY(EditAnywhere)
 	int32 BulletCost = 1;
 
+	UPROPERTY(EditAnywhere)
+	bool bTreatDifferentWinksAsBlink = true;
+
 public:
 	ABlinkGameMode();
 	virtual void Tick(float DeltaSeconds) override;
@@ -45,6 +48,12 @@ public:
 	void PlayerBlinked();
 
 	UFUNCTION(Exec)
+	void PlayerWinked(const class UCameraReader* CameraReader, bool bRightEye);
+
+	UFUNCTION(Exec)
+	void PlayerBothEyesOpen(const class UCameraReader* CameraReader);
+
+	UFUNCTION(Exec)
 	void PlayerFound();
 	
 	UFUNCTION(Exec)
@@ -57,6 +66,9 @@ public:
 	void StopEnemySpawning();
 
 	void GunFired() const;
+
+	UFUNCTION(Exec)
+	void DisableDeath(bool bDisable);
 
 protected:
 	virtual void BeginPlay() override;

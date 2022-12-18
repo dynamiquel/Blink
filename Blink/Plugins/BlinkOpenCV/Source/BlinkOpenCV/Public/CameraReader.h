@@ -87,9 +87,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Eyes", meta = (ClampMin=0.f, ClampMax=1.f))
 	double WinkResetTime;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Eyes", meta = (ClampMin=0.f, ClampMax=1.f))
+	double ConsiderAsOpenTime;
+
+
 	double PreviousBlinkTime;
 	double PreviousLeftWinkTime;
 	double PreviousRightWinkTime;
+	bool bWasOpenLast = false;
 
 	int32 BlinkCount;
 	int32 LeftWinkCount;
@@ -128,6 +133,9 @@ protected:
 
 	UFUNCTION(BlueprintNativeEvent)
 	void OnRightEyeWink();
+
+	UFUNCTION(BlueprintNativeEvent)
+	void OnBothOpen();
 
 	UFUNCTION(BlueprintNativeEvent)
 	void OnCameraLost();

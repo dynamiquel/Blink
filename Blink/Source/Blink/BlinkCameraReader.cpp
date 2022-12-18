@@ -12,12 +12,23 @@ void UBlinkCameraReader::OnBlink_Implementation()
 
 void UBlinkCameraReader::OnLeftEyeWink_Implementation()
 {
-	//Super::OnLeftEyeWink_Implementation();
+	Super::OnLeftEyeWink_Implementation();
+
+	GetWorld()->GetAuthGameMode<ABlinkGameMode>()->PlayerWinked(this, false);
 }
 
 void UBlinkCameraReader::OnRightEyeWink_Implementation()
+{	
+	Super::OnRightEyeWink_Implementation();
+	
+	GetWorld()->GetAuthGameMode<ABlinkGameMode>()->PlayerWinked(this, true);
+}
+
+void UBlinkCameraReader::OnBothOpen_Implementation()
 {
-	//Super::OnRightEyeWink_Implementation();
+	Super::OnBothOpen_Implementation();
+
+	GetWorld()->GetAuthGameMode<ABlinkGameMode>()->PlayerBothEyesOpen(this);
 }
 
 void UBlinkCameraReader::OnCameraFound_Implementation()

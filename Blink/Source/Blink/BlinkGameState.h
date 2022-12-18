@@ -30,6 +30,12 @@ public:
 	UPROPERTY(VisibleInstanceOnly, Category=GameState)
 	bool bHasStarted = false;
 
+	UPROPERTY(VisibleInstanceOnly, Category=GameState)
+	bool bPreparingEyeStrike = false;
+
+	UPROPERTY(VisibleInstanceOnly, Category=GameState)
+	bool bDeathDisabled = false;
+
 	int32 GetScore() const { return Score; }
 	void SetScore(int32 NewScore);
 

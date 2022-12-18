@@ -37,10 +37,17 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	UAsclepiusHealthComponent* HealthComponent;
 
+	int32 EyeStrikesChargesLeft = 3;
+
 public:
 	ABlinkCharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	virtual void Tick(float DeltaSeconds) override;
 
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+	/** Special ability. */
+	void OnPrepareEyeStrike();
+	void OnActivateEyeStrike();
 
 protected:
 	virtual void BeginPlay();

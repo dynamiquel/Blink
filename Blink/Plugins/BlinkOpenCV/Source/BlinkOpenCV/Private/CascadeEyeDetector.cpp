@@ -17,7 +17,7 @@ FCascadeEyeDetector::FCascadeEyeDetector(FVideoReader* InVideoReader)
 	ThreadName = TEXT("CascadeEyeDetectorThread");
 	
 	FString CascadeDirectory =
-    FPaths::Combine(FPaths::ProjectPluginsDir(), TEXT("BlinkOpenCV"), TEXT("Content"), TEXT("Cascades"));
+    FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Blink"), TEXT("Cascades"));
     
 	IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
 	FString Result;
@@ -28,12 +28,14 @@ FCascadeEyeDetector::FCascadeEyeDetector(FVideoReader* InVideoReader)
 		
 	//FaceClassifier = cv::cuda::CascadeClassifier::create(TCHAR_TO_UTF8(*CascadeFilePath));
 	FaceClassifier = MakeShared<cv::CascadeClassifier>(TCHAR_TO_UTF8(*CascadeFilePath));
+	//checkf(EyeClassifier, TEXT("Face Classifier could not be loaded."));
 	
 	// Load the Eye cascade filter.
 	CascadeFilePath = FPaths::Combine(CascadeDirectory, TEXT("haarcascade_eye.xml"));
 	checkf(FileManager.FileExists(*CascadeFilePath), TEXT("The OpenCV Eye cascade filter does not exist"));
 
 	EyeClassifier = MakeShared<cv::CascadeClassifier>(TCHAR_TO_UTF8(*CascadeFilePath));
+	//checkf(EyeClassifier, TEXT("Eye Classifier could not be loaded."));
 
 	BlurFilter = MakeShared<cv::Ptr<cv::cuda::Filter>>(cv::cuda::createGaussianFilter(0, 0, {7, 7}, 0));
 	EdgeFilter = MakeShared<cv::Ptr<cv::cuda::CannyEdgeDetector>>(cv::cuda::createCannyEdgeDetector(20, 50));
@@ -51,6 +53,7 @@ FCascadeEyeDetector::~FCascadeEyeDetector()
 
 uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime)
 {
+	// Convert to greyscale using CUDA.
 	cv::cuda::GpuMat Src;
 	Src.upload(Frame);
 	cv::cuda::cvtColor(Src, Src, cv::COLOR_BGR2GRAY);
@@ -64,7 +67,7 @@ uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& Delta
 	// Do additional processing to determine the actual eye status by taking errors into account.
 	const EEyeStatus ErroredEyeStatus = GetEyeStatusWithError(FrameEyeStatus);
 
-	// Record the last eye(s) closed time so it can be used by external objects.
+	// Record the last eye(s) closed time so it can be used by external objects (i.e. CameraReader).
 	const double CurrentTime = FPlatformTime::Seconds();
 	switch (ErroredEyeStatus)
 	{
@@ -79,8 +82,11 @@ uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& Delta
 			break;
 	}
 
+	#if UE_BUILD_DEBUG || UE_EDITOR
 	UE_LOG(LogBlinkOpenCV, Warning, TEXT("State: %s"), *UEnum::GetValueAsString(FrameEyeStatus));
 	UE_LOG(LogBlinkOpenCV, Error, TEXT("State: %s"), *UEnum::GetValueAsString(ErroredEyeStatus));
+	#endif
+	
 	return 0;
 }
 
@@ -90,7 +96,7 @@ cv::Rect FCascadeEyeDetector::GetFace(const cv::Mat& Frame) const
 	std::vector<cv::Rect> Faces;
 	if (const auto FaceClass = GetFaceClassifier().Pin(); FaceClass.IsValid())
 	{
-		FaceClassifier->detectMultiScale(Frame, OUT Faces, 1.3f, 5,
+		FaceClass->detectMultiScale(Frame, OUT Faces, 1.3f, 5,
 			cv::CASCADE_FIND_BIGGEST_OBJECT,
 			cv::Size(MinFaceSize, MinFaceSize));
 	}
@@ -103,9 +109,11 @@ cv::Rect FCascadeEyeDetector::GetFace(const cv::Mat& Frame) const
 	if (Faces.size() > 0)
 	{
 		DrawFace(Frame, Faces[0]);
+		
 		return Faces[0];
 	}
-	
+
+	// No face found.
 	return cv::Rect();
 }
 
@@ -119,8 +127,7 @@ void FCascadeEyeDetector::FilterFaces(const cv::Mat& Frame, std::vector<cv::Rect
 	float BiggestArea = 0;
 	for (int32 i = 0; i < Faces.size(); i++)
 	{
-		const float Area = Faces[i].area();
-		if (Area > BiggestArea)
+		if (const float Area = Faces[i].area(); Area > BiggestArea)
 		{
 			BiggestFaceIndex = i;
 			BiggestArea = Area;
@@ -149,7 +156,7 @@ void FCascadeEyeDetector::GetEyes(const cv::Mat& Frame, const cv::Rect& Face, cv
 	{
 		// Search for eyes in the calculated Left Eye Area.
 		auto FaceRoi = Frame(LeftEyeArea);
-		EyeClassifier->detectMultiScale(
+		EyeClass->detectMultiScale(
 			FaceRoi,
 			OUT LeftEyes,
 			1.3,
@@ -159,7 +166,7 @@ void FCascadeEyeDetector::GetEyes(const cv::Mat& Frame, const cv::Rect& Face, cv
 
 		// Search for eyes in the calculated Right Eye Area.
 		FaceRoi = Frame(RightEyeArea);
-		EyeClassifier->detectMultiScale(
+		EyeClass->detectMultiScale(
 			FaceRoi,
 			OUT RightEyes,
 			1.3,
@@ -167,7 +174,7 @@ void FCascadeEyeDetector::GetEyes(const cv::Mat& Frame, const cv::Rect& Face, cv
 			cv::CASCADE_SCALE_IMAGE,
 			cv::Size(MinEyeSize, MinEyeSize));
 	}
-	
+
 	DrawPreFilteredEyes(Frame, LeftEyeArea, LeftEyes);
 	DrawPreFilteredEyes(Frame, RightEyeArea, RightEyes);
 
@@ -263,6 +270,7 @@ void FCascadeEyeDetector::FilterEyes(std::vector<cv::Rect>& LeftEyes, std::vecto
 
 bool FCascadeEyeDetector::IsEyeTooLarge(const cv::Rect& Eye, const cv::Rect& Face)
 {
+	// Eye too large in proportion to face size.
 	const float EyeProportion = (float)Eye.area() / (float)Face.area();
 	return EyeProportion >= .1f;
 }

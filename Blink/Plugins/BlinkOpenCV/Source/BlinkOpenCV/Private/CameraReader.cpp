@@ -22,7 +22,8 @@ UCameraReader::UCameraReader()
 	VideoReaderTickRate = 1.f / 30.f;
 	EyeSampleRate = 1.f / 30.f;
 	BlinkResetTime = 3;
-	WinkResetTime = 2;
+	WinkResetTime = 3;
+	ConsiderAsOpenTime = .25f;
 }
 
 void UCameraReader::BeginPlay()
@@ -46,7 +47,7 @@ void UCameraReader::TickComponent(float DeltaTime, ELevelTick TickType, FActorCo
 		}
 	}
 
-	#if UE_BUILD_DEBUG || UE_EDITOR
+	#if UE_BUILD_DEVELOPMENT || UE_EDITOR
 	// Debugging purposes. Uses the tick rate of the component as the refresh rate for the video stream output.
 	// Window rendering can only be done from the game thread, hence why it is being done here.
 	if (bShowInSeparateWindow && VideoReader)
@@ -118,8 +119,10 @@ void UCameraReader::Stop()
 	
 	if (VideoReader)
 	{
+		#if UE_BUILD_DEVELOPMENT || UE_EDITOR
 		if (bShowInSeparateWindow)
 			VideoReader->StopRendering();
+		#endif
 		
 		delete VideoReader;
 		VideoReader = nullptr;
@@ -144,8 +147,10 @@ void UCameraReader::OnEyeSampleTick()
 
 				if (CurrentTime > PreviousBlinkTime + BlinkResetTime /* different* blink */ && LastBlinkTimeValue > PreviousBlinkTime /* new blink */)
 				{
+					bWasOpenLast = false;
 					PreviousBlinkTime = CurrentTime;
 					OnBlink();
+					return;
 				}
 
 				double LastLeftWinkTimeValue = 0;
@@ -154,8 +159,10 @@ void UCameraReader::OnEyeSampleTick()
 				
 				if (LastLeftWinkTimeValue > PreviousLeftWinkTime && CurrentTime > PreviousLeftWinkTime + WinkResetTime)
 				{
+					bWasOpenLast = false;
 					PreviousLeftWinkTime = CurrentTime;
 					OnLeftEyeWink();
+					return;
 				}
 
 				double LastRightWinkTimeValue = 0;
@@ -164,12 +171,25 @@ void UCameraReader::OnEyeSampleTick()
 				
 				if (LastRightWinkTimeValue > PreviousRightWinkTime && CurrentTime > PreviousRightWinkTime + WinkResetTime)
 				{
+					bWasOpenLast = false;
 					PreviousRightWinkTime = CurrentTime;
 					OnRightEyeWink();
+					return;
+				}
+
+				double OpenTime = CurrentTime - ConsiderAsOpenTime;
+				if (!bWasOpenLast && LastBlinkTimeValue < OpenTime && LastLeftWinkTimeValue < OpenTime && LastRightWinkTimeValue < OpenTime)
+				{
+					bWasOpenLast = true;
+					OnBothOpen();
 				}
 			}
 		}
 	}
+}
+
+void UCameraReader::OnBothOpen_Implementation()
+{
 }
 
 void UCameraReader::OnBlink_Implementation()

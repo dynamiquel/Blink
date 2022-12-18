@@ -10,7 +10,10 @@
 #include "GameFramework/InputSettings.h"
 #include "AsclepiusHealth.h"
 #include "BlinkGameMode.h"
+#include "BlinkGameState.h"
 #include "GameFramework/PlayerState.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -50,8 +53,18 @@ ABlinkCharacter::ABlinkCharacter(const FObjectInitializer& ObjectInitializer) : 
 	HealthComponent = CreateDefaultSubobject<UAsclepiusHealthComponent>(TEXT("Health"));
 }
 
+void ABlinkCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if (auto GameState = GetWorld()->GetGameState<ABlinkGameState>(); IsValid(GameState) && GameState->bPreparingEyeStrike)
+	{
+		OnPrepareEyeStrike();
+	}
+}
+
 float ABlinkCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator,
-	AActor* DamageCauser)
+                                  AActor* DamageCauser)
 {	
 	// Does all the damage modifier calculations.
 	DamageAmount = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
@@ -68,6 +81,18 @@ float ABlinkCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 	}
 
 	return DamageAmount;
+}
+
+void ABlinkCharacter::OnPrepareEyeStrike()
+{
+	UKismetSystemLibrary::DrawDebugArrow(
+		this,
+		GetPawnViewLocation(),
+		GetPawnViewLocation() + (GetActorForwardVector() * 1000.f),
+		10.f,
+		FLinearColor(0, 255, 255),
+		0,
+		3.f);
 }
 
 void ABlinkCharacter::BeginPlay()
@@ -160,6 +185,48 @@ void ABlinkCharacter::OnPrimaryAction()
 {
 	// Trigger the OnItemUsed Event
 	OnUseItem.Broadcast();
+}
+
+void ABlinkCharacter::OnActivateEyeStrike()
+{
+	if (EyeStrikesChargesLeft <= 0)
+		return;
+
+	EyeStrikesChargesLeft--;
+
+	UKismetSystemLibrary::PrintString(
+	this,
+	FString::Printf(TEXT("Strikes Left: %d/%d"), EyeStrikesChargesLeft, 3),
+	true,
+	false,
+	FLinearColor::Yellow,
+	FLT_MAX,
+	FName(TEXT("ChargesKey")));
+	
+	// Fire ray from just below centre of screen.
+	FHitResult HitResult;
+	GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		GetPawnViewLocation(),
+		GetPawnViewLocation() + UKismetMathLibrary::GetForwardVector(GetViewRotation()) * 10000.f,
+		ECC_Visibility);
+
+	if (HitResult.bBlockingHit)
+	{
+		// Cause radial damage from hit location.
+		UKismetSystemLibrary::DrawDebugSphere(
+		this,
+		HitResult.Location,
+		10.f,
+		12,
+		FLinearColor(0, 255, 255),
+		1.f,
+		3.f);
+
+		TArray<AActor*> IgnoredActors;
+		IgnoredActors.Add(this);
+		UGameplayStatics::ApplyRadialDamage(this, 100.f, HitResult.Location, 300.f, nullptr, IgnoredActors);
+	}
 }
 
 void ABlinkCharacter::BeginTouch(const ETouchIndex::Type FingerIndex, const FVector Location)
