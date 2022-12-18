@@ -35,6 +35,9 @@ FCascadeEyeDetector::FCascadeEyeDetector(FVideoReader* InVideoReader)
 
 	EyeClassifier = MakeShared<cv::CascadeClassifier>(TCHAR_TO_UTF8(*CascadeFilePath));
 
+	BlurFilter = MakeShared<cv::Ptr<cv::cuda::Filter>>(cv::cuda::createGaussianFilter(0, 0, {7, 7}, 0));
+	EdgeFilter = MakeShared<cv::Ptr<cv::cuda::CannyEdgeDetector>>(cv::cuda::createCannyEdgeDetector(20, 50));
+
 	CreateThread();
 }
 
@@ -42,6 +45,8 @@ FCascadeEyeDetector::~FCascadeEyeDetector()
 {
 	EyeClassifier.Reset();
 	FaceClassifier.Reset();
+	BlurFilter.Reset();
+	EdgeFilter.Reset();
 }
 
 uint32 FCascadeEyeDetector::ProcessNextFrame(cv::Mat& Frame, const double& DeltaTime)

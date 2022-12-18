@@ -16,9 +16,6 @@ class BLINK_API ABlinkGameState : public AGameStateBase
 
 public:
 	UPROPERTY(VisibleInstanceOnly, Category=GameState)
-	int32 Score = 0;
-
-	UPROPERTY(VisibleInstanceOnly, Category=GameState)
 	int32 Deaths = 0;
 
 	UPROPERTY(VisibleInstanceOnly, Category=GameState)
@@ -29,4 +26,14 @@ public:
 
 	UPROPERTY(VisibleInstanceOnly, Category=GameState)
 	float EnemySpawnTime = 0;
+
+	UPROPERTY(VisibleInstanceOnly, Category=GameState)
+	bool bHasStarted = false;
+
+	int32 GetScore() const { return Score; }
+	void SetScore(int32 NewScore);
+
+private:
+	UPROPERTY(VisibleInstanceOnly, Category=GameState)
+	int32 Score = 0;
 };

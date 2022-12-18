@@ -18,4 +18,6 @@ protected:
 	virtual void OnBlink_Implementation() override;
 	virtual void OnLeftEyeWink_Implementation() override;
 	virtual void OnRightEyeWink_Implementation() override;
+	virtual void OnCameraFound_Implementation() override;
+	virtual void OnCameraLost_Implementation() override;
 };

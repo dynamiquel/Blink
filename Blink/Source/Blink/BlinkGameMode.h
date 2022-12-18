@@ -45,6 +45,12 @@ public:
 	void PlayerBlinked();
 
 	UFUNCTION(Exec)
+	void PlayerFound();
+	
+	UFUNCTION(Exec)
+	void PlayerLost();
+
+	UFUNCTION(Exec)
 	void StartEnemySpawning();
 
 	UFUNCTION(Exec)

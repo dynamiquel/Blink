@@ -29,4 +29,9 @@ public:
 protected:
 	UPROPERTY(VisibleDefaultsOnly)
 	UCameraReader* CameraReader = nullptr;
+
+	FTimerHandle StartCameraReaderTimer;
+
+	UFUNCTION()
+	void StartCameraReader() { EnableCameraReader(); }
 };

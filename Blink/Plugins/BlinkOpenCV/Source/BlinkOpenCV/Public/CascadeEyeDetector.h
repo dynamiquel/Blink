@@ -37,6 +37,8 @@ protected:
 
 	TWeakPtr<cv::CascadeClassifier> GetFaceClassifier() const { return FaceClassifier; }
 	TWeakPtr<cv::CascadeClassifier> GetEyeClassifier() const { return EyeClassifier; }
+	TWeakPtr<cv::Ptr<cv::cuda::Filter>> GetBlurFilter() const { return BlurFilter; }
+	TWeakPtr<cv::Ptr<cv::cuda::CannyEdgeDetector>> GetEdgeFilter() const { return EdgeFilter; }
 	
 protected:
 	int MinFaceSize = 200;
@@ -50,6 +52,8 @@ protected:
 	
 	TSharedPtr<cv::CascadeClassifier> FaceClassifier;
 	TSharedPtr<cv::CascadeClassifier> EyeClassifier;
+	TSharedPtr<cv::Ptr<cv::cuda::Filter>> BlurFilter;
+	TSharedPtr<cv::Ptr<cv::cuda::CannyEdgeDetector>> EdgeFilter;
 
 	// State vars to take error into consideration.
 	float TimeLeftEyeClosed = 0;

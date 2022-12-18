@@ -4,6 +4,10 @@
 /**
  * @brief My third implementation of an eye detector, combining the DNN face detector with the Haar cascade
  * eye detector.
+ * The face detection is far superior than using pure Haar cascades, especially in lit areas, however, the eye
+ * detection provides provides too many false negatives (it is amazing at detecting eyes but awful at detecting
+ * whether they are closed or not).
+ * Unsure why the eye detection is like this as it is based off the original Haar cascade implementation.
  */
 class FDnnCascadeEyeDetector : public FEyeDetector
 {

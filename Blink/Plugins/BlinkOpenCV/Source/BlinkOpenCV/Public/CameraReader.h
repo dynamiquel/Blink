@@ -129,7 +129,9 @@ protected:
 	UFUNCTION(BlueprintNativeEvent)
 	void OnRightEyeWink();
 
+	UFUNCTION(BlueprintNativeEvent)
 	void OnCameraLost();
 
+	UFUNCTION(BlueprintNativeEvent)
 	void OnCameraFound();
 };

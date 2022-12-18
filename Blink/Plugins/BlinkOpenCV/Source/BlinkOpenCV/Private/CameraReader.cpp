@@ -220,7 +220,7 @@ void UCameraReader::OnRightEyeWink_Implementation()
 	UKismetSystemLibrary::PrintString(this, TEXT("Right Winked"), true, false);
 }
 
-void UCameraReader::OnCameraLost()
+void UCameraReader::OnCameraLost_Implementation()
 {
 	UKismetSystemLibrary::PrintString(
 		this,
@@ -232,7 +232,7 @@ void UCameraReader::OnCameraLost()
 		FName(TEXT("CameraLost")));
 }
 
-void UCameraReader::OnCameraFound()
+void UCameraReader::OnCameraFound_Implementation()
 {
 	UKismetSystemLibrary::PrintString(
 		this,

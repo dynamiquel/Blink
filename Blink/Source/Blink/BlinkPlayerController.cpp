@@ -18,7 +18,16 @@ ABlinkPlayerController::ABlinkPlayerController()
 void ABlinkPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	// Disable player input until we have confirmation the camera has been detected.
+	GetPawn()->DisableInput(this);
+
+	// Start the camera reader in a few seconds.
+	GetWorldTimerManager().SetTimer(StartCameraReaderTimer,
+		this,
+		&ABlinkPlayerController::StartCameraReader,
+		2.f,
+		false);
 }
 
 // Called every frame

@@ -136,7 +136,7 @@ void FVideoReader::Render()
 
 		// Render any child renderers.
 		for (const auto ChildRenderer : ChildRenderers)
-			if (const auto LockedChildRenderer = ChildRenderer.Pin())
+			if (const auto LockedChildRenderer = ChildRenderer.Pin(); LockedChildRenderer.IsValid())
 				LockedChildRenderer->Render();
 	}
 }

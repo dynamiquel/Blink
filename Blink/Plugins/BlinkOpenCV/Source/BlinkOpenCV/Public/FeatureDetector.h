@@ -11,6 +11,8 @@
 #include <opencv2/core/cuda.hpp>
 #include <opencv2/cudawarping.hpp>
 #include <opencv2/cudacodec.hpp>
+#include "opencv2/cudafilters.hpp"
+#include "opencv2/cudaimgproc.hpp"
 #include <opencv2/dnn/dnn.hpp>
 #include "PostOpenCVHeaders.h"
 #include "Renderable.h"
