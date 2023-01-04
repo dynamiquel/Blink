@@ -5,6 +5,8 @@ I had to fork this plugin so I could make the necessary adjustments to make Open
 
 For whatever reason, I could never get DirectShow or Microsoft Media Foundation to work on my setup with Unreal Engine 5, so I decided to build and use the OpenCV GStreamer module.
 
+[**Download the game here**](https://github.com/dynamiquel/Blink/releases/tag/1.0)
+
 ## Design
 The project is split into three main parts:
 
